@@ -1,11 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arduino Settings</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body>
-    <h1>hello!</h1>
+  <div id="app" class="container">
+    <h1>Настройки:</h1>
+
+    <div v-for="(value, param) in settings" :key="param">
+      <label :for="param">{{ param }}:</label>
+      <input type="text" :name="param" v-model="settings[param]"><br>
+      <button @click="updateSetting(param)">Применить</button>
+      <br><br>
+    </div>
+  </div>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        settings: {
+          t_rozhik_shnek: '',
+          t_nagrev_shnek: '',
+          t_podderg_shnek: '',
+          t_shnek_step: '',
+          t_rozhik: '',
+          flame_fix: '',
+          t_flame: '',
+          vent_rozhik: '',
+          vent_nagrev: '',
+          vent_podderg: '',
+          vent_ogidanie: '',
+          temp: '',
+          gister: '',
+          t_vizh: ''
+        }
+      },
+      methods: {
+        updateSetting(param) {
+          axios.get(`/?${param}=${this.settings[param]}`)
+            .then(response => {
+              // Обработка успешного ответа (если необходимо)
+            })
+            .catch(error => {
+              console.error(error);
+            });
+        }
+      }
+    });
+  </script>
 </body>
 </html>
