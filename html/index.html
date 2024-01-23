@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>body, html {margin:0; padding:0; width:100%; height:100%; overflow:hidden} iframe {width:100%; height:100%; border:none}</style>
+    <style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style>
 </head>
 <body>
-    <iframe id="myIframe"></iframe>
+    <iframe id="i"></iframe>
     <script>
-        async function loadHtmlIntoIframe(url, id) {
-            document.getElementById(id).srcdoc = await (await fetch(url)).text();
-        }
-        loadHtmlIntoIframe('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html', 'myIframe');
+        (async function l(url, id) {
+            document.getElementById('i').srcdoc = await (await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html')).text();
+        })()
     </script>
 </body>
 </html>
