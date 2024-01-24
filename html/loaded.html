@@ -1,137 +1,172 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vue.js Page</title>
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue.js Page</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
+
 <body>
 
-<div id="app" class="container">
-  <h1>Управление Камином</h1>
+    <div id="app" class="container">
+        <h1>Управление Камином</h1>
 
-  <div class="center-container">
-    <button @click="startFire" class="btn btn-primary">Старт</button>
-    <div class="indicators">
-      <p>Текущее состояние: {{ currentState }}</p>
-      <p>Температура: {{ temperature }}°C</p>
-      <p>Пламя: {{ flamePercentage }}%</p>
-      <p>Вентилятор: {{ fanPercentage }}%</p>
-    </div>
-    <button @click="openSettings" class="btn btn-info">Настройки</button>
-  </div>
-
-  <div v-if="showSettings" class="overlay">
-    <div class="settings-popup">
-      <button @click="closeSettings" class="btn btn-outline-danger close-btn">&times;</button>
-      <h2>Настройки:</h2>
-      <div v-for="(value, param) in settings" :key="param">
-        <div class="form-group">
-          <label :for="param">{{ param }}:</label>
-          <input type="text" :name="param" v-model="settings[param]" class="form-control">
+        <div v-if="!showSettings" class="center-container">
+            <button @click="startFire" class="btn btn-primary">Старт</button>
+            <div class="indicators">
+              <svg width="350" viewBox="0 15 100 35">
+                <circle r='31.84713375796178' cx="50" cy="50" fill="none" stroke="#ccc" stroke-width="4" />
+                <circle r='31.84713375796178' cx="50" cy="50" fill="none" stroke="#000" stroke-width="4" :stroke-dasharray="50" id="circle" />
+                <text x="45" y="45" id="text">{{ flamePercentage }}</text>
+              </svg>
+                <p>Текущее состояние: {{ currentState }}</p>
+                <p>Температура: {{ temperature }}°C</p>
+                <p>Пламя: {{ flamePercentage }}%</p>
+                <p>Вентилятор: {{ fanPercentage }}%</p>
+            </div>
+            <button @click="openSettings" class="btn btn-info">Настройки</button>
         </div>
-        <button @click="updateSetting(param)" class="btn btn-primary">Применить</button>
-        <br><br>
-      </div>
+
+        <div v-if="showSettings" class="settings-container">
+            <div class="settings-list">
+                <div v-for="(value, param) in settings" :key="param" class="setting-item">
+                    <div class="setting-info">
+                        <p class="setting-name">{{ param }}</p>
+                        <p class="setting-value">{{ value }}</p>
+                    </div>
+                    <div class="setting-controls">
+                        <button @click="openSettingPopup(param)" class="btn btn-link">&#9881;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showPopup" class="overlay edit-popup">
+            <div class="settings-popup">
+                <button @click="closePopup" class="btn btn-outline-danger close-btn">&times;</button>
+                <h2>{{ currentSetting }}</h2>
+                <div class="form-group">
+                    <label :for="currentSetting">{{ currentSetting }}:</label>
+                    <input type="number" v-model="settings[currentSetting]" class="form-control">
+                </div>
+                <button @click="applySetting" class="btn btn-primary">Применить</button>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
-<script>
-  new Vue({
-    el: '#app',
-    data: {
-      currentState: 'Выключено',
-      temperature: 0,
-      flamePercentage: 0,
-      fanPercentage: 0,
-      showSettings: false,
-      settings: {
-        t_rozhik_shnek: '',
-        t_nagrev_shnek: '',
-        t_podderg_shnek: '',
-        t_shnek_step: '',
-        t_rozhik: '',
-        flame_fix: '',
-        t_flame: '',
-        vent_rozhik: '',
-        vent_nagrev: '',
-        vent_podderg: '',
-        vent_ogidanie: '',
-        temp: '',
-        gister: '',
-        t_vizh: ''
-      }
-    },
-    methods: {
-      updateSetting(param) {
-        axios.get(`/?${param}=${this.settings[param]}`)
-          .then(response => {
-            // Обработка успешного ответа (если необходимо)
-          })
-          .catch(error => {
-            console.error(error);
-          });
-      },
-      startFire() {
-        // Логика для запуска камина
-        this.currentState = 'Включено';
-        // Дополнительная логика, если необходимо
-      },
-      openSettings() {
-        this.showSettings = true;
-      },
-      closeSettings() {
-        this.showSettings = false;
-      }
-    }
-  });
-</script>
+    <script>
+        const app = Vue.createApp({
+            data() {
+                return {
+                    currentState: 'Выключено',
+                    temperature: 0,
+                    flamePercentage: 20,
+                    fanPercentage: 0,
+                    showSettings: false,
+                    showPopup: false,
+                    currentSetting: '',
+                    settings: {
+                        t_rozhik_shnek: 0,
+                        t_nagrev_shnek: 0,
+                        t_podderg_shnek: 0,
+                        t_shnek_step: 0,
+                        t_rozhik: 0,
+                        flame_fix: 0,
+                        t_flame: 0,
+                        vent_rozhik: 0,
+                        vent_nagrev: 0,
+                        vent_podderg: 0,
+                        vent_ogidanie: 0,
+                        temp: 0,
+                        gister: 0,
+                        t_vizh: 0
+                    }
+                };
+            },
+            methods: {
+                updateSetting(param) {
+                    axios.get(`/?${param}=${this.settings[param]}`)
+                        .then(response => {
+                            // Обработка успешного ответа (если необходимо)
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                },
+                startFire() {
+                    // Логика для запуска камина
+                    this.currentState = 'Включено';
+                    // Дополнительная логика, если необходимо
+                },
+                openSettings() {
+                    this.showSettings = true;
+                },
+                closeSettings() {
+                    this.showSettings = false;
+                },
+                openSettingPopup(param) {
+                    this.currentSetting = param;
+                    this.showPopup = true;
+                },
+                closePopup() {
+                    this.showPopup = false;
+                },
+                applySetting() {
+                    this.updateSetting(this.currentSetting);
+                    this.showPopup = false;
+                }
+            }
+        });
 
-<style>
-  .center-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 20px;
-  }
+        app.mount('#app');
+    </script>
 
-  .indicators {
-    margin-top: 20px;
-  }
+    <style>
+        /* Existing styles... */
 
-  .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-  }
+        .settings-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
 
-  .settings-popup {
-    max-height: 80vh;
-    overflow-y: auto;
-    padding: 20px;
-    background-color: #fff;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    z-index: 1001;
-  }
+        .settings-list {
+            width: 100%;
+        }
 
-  .close-btn {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 1.5em;
-  }
-</style>
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #ccc;
+            padding: 10px;
+        }
+
+        .setting-info {
+            flex: 1;
+        }
+
+        .setting-controls {
+            flex-shrink: 0;
+        }
+
+        .setting-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .setting-value {
+            margin: 0;
+        }
+        #circle {
+          transition: 0.3s linear;
+        }
+    </style>
 
 </body>
+
 </html>

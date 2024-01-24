@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speedometer</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const app = Vue.createApp({
+  data() {
+    return {
+      maxSpeed: 100,
+      currentSpeed: 0
+    };
+  },
+  computed: {
+    arrowStyle() {
+      const rotation = (this.currentSpeed / this.maxSpeed) * 180;
+      return {
+        transform: `rotate(${rotation}deg)`
+      };
+    }
+  },
+  methods: {
+    updateSpeed() {
+      // Ваш код для получения текущей скорости интернета
+      // В данном примере я использую случайное число
+      this.currentSpeed = Math.floor(Math.random() * (this.maxSpeed + 1));
+    }
+  },
+  mounted() {
+    setInterval(this.updateSpeed, 3000); // Обновление каждые 3 секунды (вы можете настроить под свои потребности)
+  },
+  template: `
+    <div class="speedometer">
+      <div class="speedometer-circle">
+        <div class="speedometer-arrow" :style="arrowStyle"></div>
+        <div class="speedometer-center">
+          {{ currentSpeed }} Mbps
+        </div>
+      </div>
+    </div>
+  `
+});
+
+app.mount('#app');
+</script>
+
+<style>
+.speedometer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.speedometer-circle {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border: 5px solid #ccc;
+  border-radius: 50%;
+}
+
+.speedometer-arrow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: bottom;
+  border: 2px solid #f00;
+  border-width: 2px 10px;
+  border-radius: 10px;
+  width: 0;
+  height: 50%;
+}
+
+.speedometer-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px;
+  font-weight: bold;
+}
+</style>
+
+</body>
+</html>
