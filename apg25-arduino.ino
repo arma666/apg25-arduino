@@ -3,6 +3,7 @@
 #include <EEPROM.h>
 int myregimAddr= 0;
 int mySettingAddr = sizeof(int);
+unsigned long countTimer = 0;
 
 uint32_t myTimerFlame, myTimertemp, myTimerDIsplay, myTimerVent, btnTimer, releTimer;
 uint32_t regimTimer, shnekTimer,rozhikTimer, flamefixTimer, waitshnekTimer, flameTimer=0, vizhTimer;
@@ -25,7 +26,7 @@ struct SETTINGS {
 };
 
 SETTINGS conf = {
-  2, //Время подкидывания при розжиге 
+  100, //Время подкидывания при розжиге 
   8, //Время подкидывания при нагреве
   5, //Время подкидывания при подержании
   10, //Промежуток между подкидываниями
@@ -221,8 +222,10 @@ void control() {
         prregim = 11;
         shnekStart=true;
         shnekTimer = millis();
+        countTimer=conf.t_rozhik_shnek;
       break;
       case 11:
+        countTimer=(shnekTimer+(conf.t_rozhik_shnek*1000L) - millis())/1000;
         if (shnekTimer+(conf.t_rozhik_shnek*1000L) < millis()) {
           shnekStart=false;
           lampaStart=true;
@@ -466,7 +469,7 @@ void loop()
         status = "Gjlrblsdfybt";
       break;
       case 11:
-        status = "Gjlrblsdfybt";
+        status = "Gjlrblsdfybt "+String(countTimer);
       break;
       case 12:
         status = "Kfvgf";
