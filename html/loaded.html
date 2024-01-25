@@ -190,15 +190,9 @@
                 closePopup() {
                     if (this.settings[this.currentSetting]!=this.curent_val) {
                         this.settings[this.currentSetting]=this.curent_val;
-                        this.applySetting();
+                        this.updateSetting(this.currentSetting);
                     }
                     
-                    
-                    console.log('close')
-                },
-                applySetting() {
-                    this.updateSetting(this.currentSetting);
-                    this.showPopup = false;
                 }
             }
         });
