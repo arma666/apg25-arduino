@@ -79,8 +79,8 @@
             <div class="settings-list">
                 <div v-for="(value, param) in settings" :key="param" class="setting-item">
                     <div class="setting-info">
-                        <p class="setting-name">{{ param }}</p>
-                        <p class="setting-value">{{ value }}</p>
+                        <p class="setting-name">{{ value.name }}</p>
+                        <p class="setting-value">{{ value.val }}</p>
                     </div>
                     <div class="setting-controls">
                         <button @click="openSettingPopup(param)" class="btn btn-link">&#9881;</button>
@@ -89,24 +89,24 @@
             </div>
         </div>
 
-        <div v-if="showPopup" class="overlay edit-popup">
+        <!-- <div v-if="showPopup" class="overlay edit-popup">
             <div class="settings-popup">
                 <button @click="closePopup" class="btn btn-outline-danger close-btn">&times;</button>
-                <h2>{{ currentSetting }}</h2>
+                <h2>{{ currentSetting.name }}</h2>
                 <div class="form-group">
-                    <label :for="currentSetting">{{ currentSetting }}:</label>
+                    <label :for="currentSetting">{{ currentSetting.val }}:</label>
                     <input type="number" v-model="settings[currentSetting]" class="form-control">
                 </div>
                 <button @click="applySetting" class="btn btn-primary">Применить</button>
             </div>
-        </div>
+        </div> -->
 
           <!-- Modal -->
   <div  class="modal fade" id="config" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="exampleModalLabel">{{ currentSetting }}</h5>
+          <h5 class="modal-title" id="exampleModalLabel">{{ curent_val_name }}</h5>
           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
           </button>
@@ -121,18 +121,13 @@
     </div>
   </div>
     </div>
-
-
-
-
-
-
       
       
     <script>
         const app = Vue.createApp({
             data() {
                 return {
+                    curent_val_name: "",
                     curent_val: 0,
                     currentState: 'Выключено',
                     temperature: 40,
@@ -142,26 +137,68 @@
                     showPopup: false,
                     currentSetting: '',
                     settings: {
-                        t_rozhik_shnek: 10,
-                        t_nagrev_shnek: 0,
-                        t_podderg_shnek: 0,
-                        t_shnek_step: 0,
-                        t_rozhik: 0,
-                        flame_fix: 0,
-                        t_flame: 0,
-                        vent_rozhik: 0,
-                        vent_nagrev: 0,
-                        vent_podderg: 0,
-                        vent_ogidanie: 0,
-                        temp: 0,
-                        gister: 0,
-                        t_vizh: 0
+                        t_rozhik_shnek: {
+                            name: "Время подкидывания при розжиге ",
+                            val: 10
+                        },
+                        t_nagrev_shnek: {
+                            name: "Время подкидывания при нагреве",
+                            val: 10
+                        },
+                        t_podderg_shnek: {
+                            name: "Время подкидывания при подержании",
+                            val: 10
+                        },
+                        t_shnek_step: {
+                            name: "Промежуток между подкидываниями",
+                            val: 10
+                        },
+                        t_rozhik: {
+                            name: "Время отведённое на розжик",
+                            val: 10
+                        },
+                        flame_fix: {
+                            name: "Время виксации пламяни",
+                            val: 10
+                        },
+                        t_flame: {
+                            name: "На каком проценте начинается фиксация",
+                            val: 10
+                        },
+                        vent_rozhik: {
+                            name: "Cкорость вентилятора при розжиге",
+                            val: 10
+                        },
+                        vent_nagrev: {
+                            name: "скорость вентилятора при нагреве",
+                            val: 10
+                        },
+                        vent_podderg: {
+                            name: "скорость вентилятора при поддержании",
+                            val: 10
+                        },
+                        vent_ogidanie: {
+                            name: "скорость вентилятора при ожидании",
+                            val: 10
+                        },
+                        temp: {
+                            name: "Установка температуры",
+                            val: 10
+                        },
+                        gister: {
+                            name: "Гистерезис",
+                            val: 10
+                        },
+                        t_vizh: {
+                            name: "Время выжигания после пламя = 0",
+                            val: 10
+                        },
                     }
                 };
             },
             methods: {
-                updateSetting(param) {
-                    axios.get(`/?${param}=${this.settings[param]}`)
+                updateSetting(obj) {
+                    axios.get(`/?${ obj}=${this.settings[obj].val}`)
                         .then(response => {
                             // Обработка успешного ответа (если необходимо)
                         })
@@ -182,14 +219,15 @@
                 },
                 openSettingPopup(param) {
                     this.currentSetting = param;
-                    this.curent_val = this.settings[param]
+                    this.curent_val_name = this.settings[param].name;
+                    this.curent_val = this.settings[param].val;
                     $('#config').modal('show');
                     //this.showPopup = true;
 
                 },
                 closePopup() {
-                    if (this.settings[this.currentSetting]!=this.curent_val) {
-                        this.settings[this.currentSetting]=this.curent_val;
+                    if (this.settings[this.currentSetting].val!=this.curent_val) {
+                        this.settings[this.currentSetting].val=this.curent_val;
                         this.updateSetting(this.currentSetting);
                     }
                     
