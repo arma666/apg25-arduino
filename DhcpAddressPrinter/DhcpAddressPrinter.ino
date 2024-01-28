@@ -121,7 +121,9 @@ void loop() {
     if (processSettingsUpdate(request)){
       if (sendparams(ethClient,request)){
         if (sendstate(ethClient,request)){
-          sendSettingsPage(ethClient);
+          if (webpressbutton(ethClient,request)){
+            sendSettingsPage(ethClient);
+          }
         }
       }
     } else {
@@ -134,8 +136,89 @@ void loop() {
   }
 }
 
+//Функция нажатия кнопки --------------->
+void pressputton(){
+  Serial.println("PressButoon");
+  if (regim == 0 ){
+    regim = 1;
+  } else if (regim == 4 || regim == 5) {
+    regim = 0;
+    shnekStart=false;
+    lampaStart=false;
+
+  }
+  else {
+    int tregim = regim;
+    regim = 4;
+    lampaStart=false;
+    shnekStart=false;
+
+  }
 
 
+}
+
+//Нажатие на кнопку
+boolean webpressbutton(EthernetClient& ethClient, String request) {
+  if (request.indexOf("pressbutton") != -1 ){
+    pressputton();
+  return false;
+  } else {
+    return true;
+  }
+}
+
+
+
+//Посылаем текущее состояние
+boolean sendstate(EthernetClient& ethClient, String request) {
+  if (request.indexOf("getstate") != -1 ){
+    ethClient.println("HTTP/1.1 200 OK");
+    ethClient.println("Content-Type: text/JSON");
+    ethClient.println();
+    ethClient.print("{");
+    ethClient.print("\"regim\":" + String(regim) + ",");
+    ethClient.print("\"shnekStart\":" + String(shnekStart) + ",");
+    ethClient.print("\"lampaStart\":" + String(lampaStart) + ",");
+    ethClient.print("\"vspeed\":" + String(vspeed) + ",");
+    ethClient.print("\"flamePersent\":" + String(flamePersent) + ",");
+    ethClient.print("\"temperVal\":" + String(temperVal) + "}");
+    return false;
+  } else {
+    return true;
+  }
+}
+
+//Посылаем текущие настройки
+boolean sendparams(EthernetClient& ethClient, String request) {
+  if (request.indexOf("getparams") != -1 ){
+    ethClient.println("HTTP/1.1 200 OK");
+    ethClient.println("Content-Type: text/JSON");
+    ethClient.println();
+    ethClient.print("{");
+    ethClient.print("\"t_rozhik_shnek\":" + String(conf.t_rozhik_shnek) + ",");
+    ethClient.print("\"t_nagrev_shnek\":" + String(conf.t_nagrev_shnek) + ",");
+    ethClient.print("\"t_podderg_shnek\":" + String(conf.t_podderg_shnek) + ",");
+    ethClient.print("\"t_shnek_step\":" + String(conf.t_shnek_step) + ",");
+    ethClient.print("\"t_rozhik\":" + String(conf.t_rozhik) + ",");
+    ethClient.print("\"flame_fix\":" + String(conf.flame_fix) + ",");
+    ethClient.print("\"t_flame\":" + String(conf.t_flame) + ",");
+    ethClient.print("\"vent_rozhik\":" + String(conf.vent_rozhik) + ",");
+    ethClient.print("\"vent_nagrev\":" + String(conf.vent_nagrev) + ",");
+    ethClient.print("\"vent_podderg\":" + String(conf.vent_podderg) + ",");
+    ethClient.print("\"vent_ogidanie\":" + String(conf.vent_ogidanie) + ",");
+    ethClient.print("\"temp\":" + String(conf.temp) + ",");
+    ethClient.print("\"gister\":" + String(conf.gister) + ",");
+    ethClient.print("\"t_vizh\":" + String(conf.t_vizh)+" }");
+
+
+    return false;
+  } else {
+    return true;
+  }
+}
+
+//Устанавливаем настройку и записываем в память
 void setval(String keyString, int val) {
 
   if (keyString == "t_rozhik_shnek") {
@@ -168,62 +251,9 @@ void setval(String keyString, int val) {
     conf.t_vizh = val;
   } 
 }
-//temp vars
-// int regim=0;
-// bool shnekStart = false;
-// bool lampaStart = false;
-// int vspeed = 0; //скорость вентилятора в процентах
-// float flamePersent = 0; //Глобальная пламя
-// float temperVal = 0; // Глобальная температура
-////////////
-boolean sendstate(EthernetClient& ethClient, String request) {
-  if (request.indexOf("getstate") != -1 ){
-    ethClient.println("HTTP/1.1 200 OK");
-    ethClient.println("Content-Type: text/JSON");
-    ethClient.println();
-    ethClient.print("{");
-    ethClient.print("\"regim\":" + String(regim) + ",");
-    ethClient.print("\"shnekStart\":" + String(shnekStart) + ",");
-    ethClient.print("\"lampaStart\":" + String(lampaStart) + ",");
-    ethClient.print("\"vspeed\":" + String(vspeed) + ",");
-    ethClient.print("\"flamePersent\":" + String(flamePersent) + ",");
-    ethClient.print("\"temperVal\":" + String(temperVal) + "}");
-    return false;
-  } else {
-    return true;
-  }
-}
 
-boolean sendparams(EthernetClient& ethClient, String request) {
-  if (request.indexOf("getparams") != -1 ){
-    ethClient.println("HTTP/1.1 200 OK");
-    ethClient.println("Content-Type: text/JSON");
-    ethClient.println();
-    ethClient.print("{");
-    ethClient.print("\"t_rozhik_shnek\":" + String(conf.t_rozhik_shnek) + ",");
-    ethClient.print("\"t_nagrev_shnek\":" + String(conf.t_nagrev_shnek) + ",");
-    ethClient.print("\"t_podderg_shnek\":" + String(conf.t_podderg_shnek) + ",");
-    ethClient.print("\"t_shnek_step\":" + String(conf.t_shnek_step) + ",");
-    ethClient.print("\"t_rozhik\":" + String(conf.t_rozhik) + ",");
-    ethClient.print("\"flame_fix\":" + String(conf.flame_fix) + ",");
-    ethClient.print("\"t_flame\":" + String(conf.t_flame) + ",");
-    ethClient.print("\"vent_rozhik\":" + String(conf.vent_rozhik) + ",");
-    ethClient.print("\"vent_nagrev\":" + String(conf.vent_nagrev) + ",");
-    ethClient.print("\"vent_podderg\":" + String(conf.vent_podderg) + ",");
-    ethClient.print("\"vent_ogidanie\":" + String(conf.vent_ogidanie) + ",");
-    ethClient.print("\"temp\":" + String(conf.temp) + ",");
-    ethClient.print("\"gister\":" + String(conf.gister) + ",");
-    ethClient.print("\"t_vizh\":" + String(conf.t_vizh)+" }");
-
-
-    return false;
-  } else {
-    return true;
-  }
-}
-
+//Принимаем изменившуюся настройку
 boolean processSettingsUpdate(String request) {
-
   int paramStart = request.indexOf('?') + 1;
   // Поиск конца названия параметра
   int paramNameEnd = request.indexOf('=', paramStart);
@@ -241,7 +271,7 @@ boolean processSettingsUpdate(String request) {
 }
 
 
-
+//Отправляем стартовую страницу
 void sendSettingsPage(EthernetClient& ethClient) {
   // Отправляем HTTP-заголовок
   ethClient.println("HTTP/1.1 200 OK");

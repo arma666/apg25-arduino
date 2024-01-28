@@ -61,8 +61,8 @@
             <div class="card mb-4 shadow-sm">
               <div class="card-body">
                 <h5 class="card-title">Заголовок карточки 5</h5>
-                <p v-if="regim===0" class="card-text"><button @click="startFire" class="btn btn-primary">Старт</button></p>
-                <p v-if="regim" class="card-text"><button @click="startFire" class="btn btn-danger">Стоп</button></p>
+                <p v-if="regim===0" class="card-text"><button @click="pressbutton" class="btn btn-primary">Старт</button></p>
+                <p v-if="regim" class="card-text"><button @click="pressbutton" class="btn btn-danger">Стоп</button></p>
               </div>
             </div>
           </div>
@@ -242,10 +242,8 @@
                             console.error(error);
                         });
                 },
-                startFire() {
-                    // Логика для запуска камина
-                    this.currentState = 'Включено';
-                    // Дополнительная логика, если необходимо
+                pressbutton() {
+                    axios.get('/perssbutton');
                 },
                 openSettings() {
                     this.showSettings = true;

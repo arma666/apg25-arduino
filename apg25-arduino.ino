@@ -125,7 +125,7 @@ void setup()
   pinMode(vent, OUTPUT); 
   analogWrite(vent, percentToValue(0));
   pinMode(4, INPUT_PULLUP); //Кнопка
-  //Serial.begin(9600);
+  Serial.begin(9600);
 
   //Блок какой режим был до выключения
   if (regim==1 || regim==2 ||regim==3){
