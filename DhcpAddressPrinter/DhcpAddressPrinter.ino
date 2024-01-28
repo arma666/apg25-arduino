@@ -2,7 +2,7 @@
 #include <Ethernet2.h>
 #include <EEPROM.h>
 //temp vars
-int regim=0;
+int regim=1;
 bool shnekStart = true;
 bool lampaStart = false;
 int vspeed = 0; //скорость вентилятора в процентах
