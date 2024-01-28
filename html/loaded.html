@@ -15,10 +15,6 @@
 
 <body>
 
-
-  
-  
-
     <div id="title"><h1>Теплодар АПГ25</h1></div>
     <div id="app" class="container">
         <div v-if="!showSettings" class="center-container">
@@ -27,7 +23,7 @@
             <div class="card mb-4 shadow-sm">
               <div class="card-body">
                 <h5 class="card-title">Текущее состояние</h5>
-                <p class="card-text">{{ currentState }}</p>
+                <p class="card-text">{{ regim }}</p>
               </div>
             </div>
           </div>
@@ -35,7 +31,7 @@
             <div class="card mb-4 shadow-sm">
               <div class="card-body">
                 <h5 class="card-title">Температура: </h5>
-                <p class="card-text">{{ temperature }}°C</p>
+                <p class="card-text">{{ temperVal }}°C</p>
               </div>
             </div>
           </div>
@@ -43,7 +39,7 @@
             <div class="card mb-4 shadow-sm">
               <div class="card-body">
                 <h5 class="card-title">Пламя:</h5>
-                <p class="card-text">{{ flamePercentage }}%</p>
+                <p class="card-text">{{ flamePersent }}%</p>
               </div>
             </div>
           </div>
@@ -53,7 +49,7 @@
             <div class="card mb-4 shadow-sm">
               <div class="card-body">
                 <h5 class="card-title">Вентилятор:</h5>
-                <p class="card-text">{{ fanPercentage }}%</p>
+                <p class="card-text">{{ vspeed }}%</p>
               </div>
             </div>
           </div>
@@ -89,17 +85,6 @@
             </div>
         </div>
 
-        <!-- <div v-if="showPopup" class="overlay edit-popup">
-            <div class="settings-popup">
-                <button @click="closePopup" class="btn btn-outline-danger close-btn">&times;</button>
-                <h2>{{ currentSetting.name }}</h2>
-                <div class="form-group">
-                    <label :for="currentSetting">{{ currentSetting.val }}:</label>
-                    <input type="number" v-model="settings[currentSetting]" class="form-control">
-                </div>
-                <button @click="applySetting" class="btn btn-primary">Применить</button>
-            </div>
-        </div> -->
 
           <!-- Modal -->
   <div  class="modal fade" id="config" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -129,10 +114,14 @@
                 return {
                     curent_val_name: "",
                     curent_val: 0,
-                    currentState: 'Выключено',
-                    temperature: 40,
-                    flamePercentage: 5,
-                    fanPercentage: 0,
+                    
+                    regim: 0,
+                    temperVal: 40,
+                    flamePersent: 5,
+                    vspeed: 0,
+                    lampaStart: 0,
+                    shnekStart: 0,
+
                     showSettings: false,
                     showPopup: false,
                     currentSetting: '',
@@ -196,11 +185,53 @@
                     }
                 };
             },
+            mounted() {
+                this.loadData();
+                // Обновлять данные каждую секунду только если showSettings = false
+                this.intervalId = setInterval(() => {
+                    if (!this.showSettings) {
+                        this.loadData();
+                    }
+                }, 1000);
+            },
             methods: {
+                loadData() {
+                    axios.get('/getstate')
+                        .then(response => {
+                            const data = response.data;
+                            this.regim = this.convertRegim(data.regim);
+                            this.temperVal = data.temperVal;
+                            this.flamePersent = data.flamePersent;
+                            this.vspeed = data.vspeed;
+                            this.lampaStart = data.lampaStart;
+                            this.shnekStart = data.shnekStart;
+                        })
+                        .catch(error => {
+                            console.error(error);
+                        });
+                },
+                convertRegim(value) {
+                    switch (value) {
+                        case 0:
+                            return "Ожидание";
+                        case 1:
+                            return "Розжик";
+                        case 2:
+                            return "Нагрев";
+                        case 3:
+                            return "Поддержание";
+                        case 4:
+                            return "Выжигание";
+                        case 5:
+                            return "Ошибка розжига";
+                        default:
+                            return "";
+                    }
+                },
                 updateSetting(obj) {
                     axios.get(`/?${ obj}=${this.settings[obj].val}`)
                         .then(response => {
-                            // Обработка успешного ответа (если необходимо)
+                            
                         })
                         .catch(error => {
                             console.error(error);
