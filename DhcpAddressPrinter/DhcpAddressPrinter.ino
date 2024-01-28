@@ -2,31 +2,31 @@
 #include <Ethernet2.h>
 #include <EEPROM.h>
 //temp vars
-int regim=1;
+byte regim=1;
 bool shnekStart = true;
 bool lampaStart = false;
-int vspeed = 0; //скорость вентилятора в процентах
+byte vspeed = 0; //скорость вентилятора в процентах
 float flamePersent = 0; //Глобальная пламя
 float temperVal = 20; // Глобальная температура
 ////////////
-int settingsAddress = 1;
+byte settingsAddress = 1;
 
 // Структура для хранения настроек
 struct SETTINGS {
-  int t_rozhik_shnek; //Время подкидывания при розжиге 
-  int t_nagrev_shnek; //Время подкидывания при нагреве
-  int t_podderg_shnek; //Время подкидывания при подержании
-  int t_shnek_step; //Промежуток между подкидываниями
-  int t_rozhik; //Время отведённое на розжик
-  int flame_fix; //Время виксации пламяни
-  int t_flame; //На каком проценте начинается фиксация
-  int vent_rozhik; //скорость вентилятора при розжиге
-  int vent_nagrev; //скорость вентилятора при нагреве
-  int vent_podderg; //скорость вентилятора при поддержании
-  int vent_ogidanie; //скорость вентилятора при ожидании
-  int temp; //Установка температуры
-  int gister; //Гистерезис
-  int t_vizh; //Время выжигания после пламя = 0
+  byte t_rozhik_shnek; //Время подкидывания при розжиге 
+  byte t_nagrev_shnek; //Время подкидывания при нагреве
+  byte t_podderg_shnek; //Время подкидывания при подержании
+  byte t_shnek_step; //Промежуток между подкидываниями
+  byte t_rozhik; //Время отведённое на розжик
+  byte flame_fix; //Время виксации пламяни
+  byte t_flame; //На каком проценте начинается фиксация
+  byte vent_rozhik; //скорость вентилятора при розжиге
+  byte vent_nagrev; //скорость вентилятора при нагреве
+  byte vent_podderg; //скорость вентилятора при поддержании
+  byte vent_ogidanie; //скорость вентилятора при ожидании
+  byte temp; //Установка температуры
+  byte gister; //Гистерезис
+  byte t_vizh; //Время выжигания после пламя = 0
 };
 
 SETTINGS defaultSettings  = {
@@ -54,12 +54,12 @@ EthernetServer server(80);
 
 // Настройки HTTP-клиента для загрузки страницы с удаленного сервера
 char serverAddress[] = "your-remote-server";
-int serverPort = 80;
+byte serverPort = 80;
 EthernetClient client;
 
 void setup() {
-  // Запускаем сериал для мониторинга через Serial Monitor
-  Serial.begin(9600);
+  // Запускаем сериал для мониторинга через //Serial Monitor
+  //Serial.begin(9600);
 
    EEPROM.get(settingsAddress, conf);
     // Проверка, есть ли данные в EEPROM
@@ -75,30 +75,30 @@ void setup() {
   if (!hasData) {
     conf = defaultSettings;
     EEPROM.put(settingsAddress, conf);
-    Serial.println("Default settings written to EEPROM");
+    //Serial.println("Default settings written to EEPROM");
   } else {
-    Serial.println("Settings read from EEPROM:");
+    //Serial.println("Settings read from EEPROM:");
   }
   
 
-  Serial.println(conf.t_rozhik_shnek);
+  //Serial.println(conf.t_rozhik_shnek);
 
   // Запускаем Ethernet с указанным MAC-адресом
   if (Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
+    //Serial.println("Failed to configure Ethernet using DHCP");
     // Некоторые дополнительные действия при ошибке
     for(;;);
   }
-  Serial.print("My IP address: ");
+  //Serial.print("My IP address: ");
   for (byte thisByte = 0; thisByte < 4; thisByte++) {
     // print the value of each byte of the IP address:
-    Serial.print(Ethernet.localIP()[thisByte], DEC);
-    Serial.print(".");
+    //Serial.print(Ethernet.localIP()[thisByte], DEC);
+    //Serial.print(".");
   }
   // Начинаем слушать порт 80
   server.begin();
 
-  Serial.println("Server started");
+  //Serial.println("Server started");
 }
 
 void loop() {
@@ -106,7 +106,7 @@ void loop() {
   EthernetClient ethClient = server.available();
   
   if (ethClient) {
-    Serial.println("New client");
+    //Serial.println("New client");
     // Ждем, пока клиент подключится и отправит запрос
     while (!ethClient.available()) {
       delay(1);
@@ -114,7 +114,7 @@ void loop() {
     
     // Читаем первую строку запроса
     String request = ethClient.readStringUntil('\r');
-    Serial.println(request);
+    //Serial.println(request);
     ethClient.flush();
     
     // Обработка запроса изменения значений структуры
@@ -132,13 +132,13 @@ void loop() {
     
     // Закрываем соединение
     ethClient.stop();
-    Serial.println("Client disconnected");
+    //Serial.println("Client disconnected");
   }
 }
 
 //Функция нажатия кнопки --------------->
 void pressputton(){
-  Serial.println("PressButoon");
+  //Serial.println("PressButoon");
   if (regim == 0 ){
     regim = 1;
   } else if (regim == 4 || regim == 5) {
@@ -167,7 +167,6 @@ boolean webpressbutton(EthernetClient& ethClient, String request) {
     return true;
   }
 }
-
 
 
 //Посылаем текущее состояние
