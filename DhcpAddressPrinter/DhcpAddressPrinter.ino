@@ -1,6 +1,14 @@
 #include <SPI.h>
 #include <Ethernet2.h>
 #include <EEPROM.h>
+//temp vars
+int regim=0;
+bool shnekStart = true;
+bool lampaStart = false;
+int vspeed = 0; //скорость вентилятора в процентах
+float flamePersent = 0; //Глобальная пламя
+float temperVal = 0; // Глобальная температура
+////////////
 int settingsAddress = 1;
 
 // Структура для хранения настроек
@@ -51,7 +59,7 @@ EthernetClient client;
 
 void setup() {
   // Запускаем сериал для мониторинга через Serial Monitor
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
    EEPROM.get(settingsAddress, conf);
     // Проверка, есть ли данные в EEPROM
@@ -67,30 +75,30 @@ void setup() {
   if (!hasData) {
     conf = defaultSettings;
     EEPROM.put(settingsAddress, conf);
-    Serial.println("Default settings written to EEPROM");
+    //Serial.println("Default settings written to EEPROM");
   } else {
-    Serial.println("Settings read from EEPROM:");
+    //Serial.println("Settings read from EEPROM:");
   }
   
 
-  Serial.println(conf.t_rozhik_shnek);
+  //Serial.println(conf.t_rozhik_shnek);
 
   // Запускаем Ethernet с указанным MAC-адресом
   if (Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
+    //Serial.println("Failed to configure Ethernet using DHCP");
     // Некоторые дополнительные действия при ошибке
     for(;;);
   }
-  Serial.print("My IP address: ");
+  //Serial.print("My IP address: ");
   for (byte thisByte = 0; thisByte < 4; thisByte++) {
     // print the value of each byte of the IP address:
-    Serial.print(Ethernet.localIP()[thisByte], DEC);
-    Serial.print(".");
+    //Serial.print(Ethernet.localIP()[thisByte], DEC);
+    //Serial.print(".");
   }
   // Начинаем слушать порт 80
   server.begin();
 
-  Serial.println("Server started");
+  //Serial.println("Server started");
 }
 
 void loop() {
@@ -98,7 +106,7 @@ void loop() {
   EthernetClient ethClient = server.available();
   
   if (ethClient) {
-    Serial.println("New client");
+    //Serial.println("New client");
     // Ждем, пока клиент подключится и отправит запрос
     while (!ethClient.available()) {
       delay(1);
@@ -106,21 +114,26 @@ void loop() {
     
     // Читаем первую строку запроса
     String request = ethClient.readStringUntil('\r');
-    Serial.println(request);
+    //Serial.println(request);
     ethClient.flush();
     
     // Обработка запроса изменения значений структуры
     if (processSettingsUpdate(request)){
-      sendSettingsPage(ethClient);
+      if (sendparams(ethClient,request)){
+        if (sendstate(ethClient,request)){
+          sendSettingsPage(ethClient);
+        }
+      }
     } else {
       ethClient.println("HTTP/1.1 200 OK");
     }
     
     // Закрываем соединение
     ethClient.stop();
-    Serial.println("Client disconnected");
+    //Serial.println("Client disconnected");
   }
 }
+
 
 
 void setval(String keyString, int val) {
@@ -155,6 +168,59 @@ void setval(String keyString, int val) {
     conf.t_vizh = val;
   } 
 }
+//temp vars
+// int regim=0;
+// bool shnekStart = false;
+// bool lampaStart = false;
+// int vspeed = 0; //скорость вентилятора в процентах
+// float flamePersent = 0; //Глобальная пламя
+// float temperVal = 0; // Глобальная температура
+////////////
+boolean sendstate(EthernetClient& ethClient, String request) {
+  if (request.indexOf("getstate") != -1 ){
+    ethClient.println("HTTP/1.1 200 OK");
+    ethClient.println("Content-Type: text/JSON");
+    ethClient.println();
+    ethClient.print("{");
+    ethClient.print("\"regim\":" + String(regim) + ",");
+    ethClient.print("\"shnekStart\":" + String(shnekStart) + ",");
+    ethClient.print("\"lampaStart\":" + String(lampaStart) + ",");
+    ethClient.print("\"vspeed\":" + String(vspeed) + ",");
+    ethClient.print("\"flamePersent\":" + String(flamePersent) + ",");
+    ethClient.print("\"temperVal\":" + String(temperVal) + "}");
+    return false;
+  } else {
+    return true;
+  }
+}
+
+boolean sendparams(EthernetClient& ethClient, String request) {
+  if (request.indexOf("getparams") != -1 ){
+    ethClient.println("HTTP/1.1 200 OK");
+    ethClient.println("Content-Type: text/JSON");
+    ethClient.println();
+    ethClient.print("{");
+    ethClient.print("\"t_rozhik_shnek\":" + String(conf.t_rozhik_shnek) + ",");
+    ethClient.print("\"t_nagrev_shnek\":" + String(conf.t_nagrev_shnek) + ",");
+    ethClient.print("\"t_podderg_shnek\":" + String(conf.t_podderg_shnek) + ",");
+    ethClient.print("\"t_shnek_step\":" + String(conf.t_shnek_step) + ",");
+    ethClient.print("\"t_rozhik\":" + String(conf.t_rozhik) + ",");
+    ethClient.print("\"flame_fix\":" + String(conf.flame_fix) + ",");
+    ethClient.print("\"t_flame\":" + String(conf.t_flame) + ",");
+    ethClient.print("\"vent_rozhik\":" + String(conf.vent_rozhik) + ",");
+    ethClient.print("\"vent_nagrev\":" + String(conf.vent_nagrev) + ",");
+    ethClient.print("\"vent_podderg\":" + String(conf.vent_podderg) + ",");
+    ethClient.print("\"vent_ogidanie\":" + String(conf.vent_ogidanie) + ",");
+    ethClient.print("\"temp\":" + String(conf.temp) + ",");
+    ethClient.print("\"gister\":" + String(conf.gister) + ",");
+    ethClient.print("\"t_vizh\":" + String(conf.t_vizh)+" }");
+
+
+    return false;
+  } else {
+    return true;
+  }
+}
 
 boolean processSettingsUpdate(String request) {
 
@@ -168,12 +234,13 @@ boolean processSettingsUpdate(String request) {
     String paramValue = request.substring(paramNameEnd + 1, paramValueEnd);
     setval(paramName.c_str(), paramValue.toInt());
     EEPROM.put(settingsAddress, conf);
-    Serial.println(conf.t_rozhik_shnek);
     return false;
   } else {
     return true;
   }
 }
+
+
 
 void sendSettingsPage(EthernetClient& ethClient) {
   // Отправляем HTTP-заголовок
