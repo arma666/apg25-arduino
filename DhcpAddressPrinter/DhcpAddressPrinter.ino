@@ -53,7 +53,7 @@ byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x29, 0xED};
 EthernetServer server(80);
 
 // Настройки HTTP-клиента для загрузки страницы с удаленного сервера
-char serverAddress[] = "your-remote-server";
+//char serverAddress[] = "your-remote-server";
 byte serverPort = 80;
 EthernetClient client;
 
@@ -127,7 +127,7 @@ void loop() {
         }
       }
     } else {
-      ethClient.println("HTTP/1.1 200 OK");
+      ethClient.println(F("HTTP/1.1 200 OK"));
     }
     
     // Закрываем соединение
@@ -172,8 +172,8 @@ boolean webpressbutton(EthernetClient& ethClient, String request) {
 //Посылаем текущее состояние
 boolean sendstate(EthernetClient& ethClient, String request) {
   if (request.indexOf("getstate") != -1 ){
-    ethClient.println("HTTP/1.1 200 OK");
-    ethClient.println("Content-Type: text/JSON");
+    ethClient.println(F("HTTP/1.1 200 OK"));
+    ethClient.println(F("Content-Type: text/JSON"));
     ethClient.println();
     ethClient.print("{");
     ethClient.print("\"regim\":" + String(regim) + ",");
@@ -188,11 +188,13 @@ boolean sendstate(EthernetClient& ethClient, String request) {
   }
 }
 
+
+
 //Посылаем текущие настройки
 boolean sendparams(EthernetClient& ethClient, String request) {
   if (request.indexOf("getparams") != -1 ){
-    ethClient.println("HTTP/1.1 200 OK");
-    ethClient.println("Content-Type: text/JSON");
+    ethClient.println(F("HTTP/1.1 200 OK"));
+    ethClient.println(F("Content-Type: text/JSON"));
     ethClient.println();
     ethClient.print("{");
     ethClient.print("\"t_rozhik_shnek\":" + String(conf.t_rozhik_shnek) + ",");
@@ -220,33 +222,33 @@ boolean sendparams(EthernetClient& ethClient, String request) {
 //Устанавливаем настройку и записываем в память
 void setval(String keyString, int val) {
 
-  if (keyString == "t_rozhik_shnek") {
+  if (keyString == F("t_rozhik_shnek")) {
     conf.t_rozhik_shnek = val;
-  } else if (keyString == "t_nagrev_shnek") {
+  } else if (keyString == F("t_nagrev_shnek")) {
     conf.t_nagrev_shnek = val;
-  } else if (keyString == "t_podderg_shnek") {
+  } else if (keyString == F("t_podderg_shnek")) {
     conf.t_podderg_shnek = val;
-  } else if (keyString == "t_shnek_step") {
+  } else if (keyString == F("t_shnek_step")) {
     conf.t_shnek_step = val;
-  } else if (keyString == "t_rozhik") {
+  } else if (keyString == F("t_rozhik")) {
     conf.t_rozhik = val;
-  } else if (keyString == "flame_fix") {
+  } else if (keyString == F("flame_fix")) {
     conf.flame_fix = val;
-  } else if (keyString == "t_flame") {
+  } else if (keyString == F("t_flame")) {
     conf.t_flame = val;
-  } else if (keyString == "vent_rozhik") {
+  } else if (keyString == F("vent_rozhik")) {
     conf.vent_rozhik = val;
-  } else if (keyString == "vent_nagrev") {
+  } else if (keyString == F("vent_nagrev")) {
     conf.vent_nagrev = val;
-  } else if (keyString == "vent_podderg") {
+  } else if (keyString == F("vent_podderg")) {
     conf.vent_podderg = val;
-  } else if (keyString == "vent_ogidanie") {
+  } else if (keyString == F("vent_ogidanie")) {
     conf.vent_ogidanie = val;
-  } else if (keyString == "temp") {
+  } else if (keyString == F("temp")) {
     conf.temp = val;
-  } else if (keyString == "gister") {
+  } else if (keyString == F("gister")) {
     conf.gister = val;
-  } else if (keyString == "t_vizh") {
+  } else if (keyString == F("t_vizh")) {
     conf.t_vizh = val;
   } 
 }
@@ -273,15 +275,15 @@ boolean processSettingsUpdate(String request) {
 //Отправляем стартовую страницу
 void sendSettingsPage(EthernetClient& ethClient) {
   // Отправляем HTTP-заголовок
-  ethClient.println("HTTP/1.1 200 OK");
-  ethClient.println("Content-Type: text/html");
+  ethClient.println(F("HTTP/1.1 200 OK"));
+  ethClient.println(F("Content-Type: text/html"));
   ethClient.println();
 
   // Отправляем HTML-страницу с формой для изменения значений
-  ethClient.println("<html><head>");
-  ethClient.println("<meta name='viewport' content='width=device-width, initial-scale=1.0'>");
-  ethClient.println("<style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style>");
-  ethClient.println("</head><body><iframe id='i'></iframe><script>(async function l(url, id) {");
-  ethClient.println("document.getElementById('i').srcdoc = await (await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html')).text();");
-  ethClient.println("})()</script></body></html>");
+  ethClient.println(F("<html><head>"));
+  ethClient.println(F("<meta name='viewport' content='width=device-width, initial-scale=1.0'>"));
+  ethClient.println(F("<style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style>"));
+  ethClient.println(F("</head><body><iframe id='i'></iframe><script>(async function l(url, id) {"));
+  ethClient.println(F("document.getElementById('i').srcdoc = await (await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html')).text();"));
+  ethClient.println(F("})()</script></body></html>"));
 }

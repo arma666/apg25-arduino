@@ -9,20 +9,20 @@ uint32_t myTimerFlame, myTimertemp, myTimerDIsplay, myTimerVent, btnTimer, releT
 uint32_t regimTimer, shnekTimer,rozhikTimer, flamefixTimer, waitshnekTimer, flameTimer=0, vizhTimer;
 //Настройки ------------>
 struct SETTINGS {
-  int t_rozhik_shnek; //Время подкидывания при розжиге 
-  int t_nagrev_shnek; //Время подкидывания при нагреве
-  int t_podderg_shnek; //Время подкидывания при подержании
-  int t_shnek_step; //Промежуток между подкидываниями
-  int t_rozhik; //Время отведённое на розжик
-  int flame_fix; //Время виксации пламяни
-  int t_flame; //На каком проценте начинается фиксация
-  int vent_rozhik; //скорость вентилятора при розжиге
-  int vent_nagrev; //скорость вентилятора при нагреве
-  int vent_podderg; //скорость вентилятора при поддержании
-  int vent_ogidanie; //скорость вентилятора при ожидании
-  int temp; //Установка температуры
-  int gister; //Гистерезис
-  int t_vizh; //Время выжигания после пламя = 0
+  byte t_rozhik_shnek; //Время подкидывания при розжиге 
+  byte t_nagrev_shnek; //Время подкидывания при нагреве
+  byte t_podderg_shnek; //Время подкидывания при подержании
+  byte t_shnek_step; //Промежуток между подкидываниями
+  byte t_rozhik; //Время отведённое на розжик
+  byte flame_fix; //Время виксации пламяни
+  byte t_flame; //На каком проценте начинается фиксация
+  byte vent_rozhik; //скорость вентилятора при розжиге
+  byte vent_nagrev; //скорость вентилятора при нагреве
+  byte vent_podderg; //скорость вентилятора при поддержании
+  byte vent_ogidanie; //скорость вентилятора при ожидании
+  byte temp; //Установка температуры
+  byte gister; //Гистерезис
+  byte t_vizh; //Время выжигания после пламя = 0
 };
 
 SETTINGS conf = {
@@ -44,9 +44,9 @@ SETTINGS conf = {
 //<------------------------
 
 //Режим ------------>
-int regim;
-int prregim = 0;
-int rozhikCount = 0;
+byte regim;
+byte prregim = 0;
+byte rozhikCount = 0;
 /*
 Режимы - -
   0 - Ожидание
@@ -57,8 +57,8 @@ int rozhikCount = 0;
   5 - Ошибка розжига
 */
 // Реле ------------>
-int shnek = 8;
-int lampa = 7;
+byte shnek = 8;
+byte lampa = 7;
 bool shnekStart = false;
 bool lampaStart = false;
 //<------------------------
@@ -68,14 +68,14 @@ bool bflag = false;
 
 
 // Вентилятор ----------->
-int vent = 5;
-int vspeed = 0; //скорость вентилятора в процентах
-int vspeedtemp = 0;
+byte vent = 5;
+byte vspeed = 0; //скорость вентилятора в процентах
+byte vspeedtemp = 0;
 //<------------------------
 
 
 // Датчик огня ----------->
-int analogPin = A0;
+byte analogPin = A0;
 String flame = "0";
 float flamePersent = 0; //Глобальная пламя
 //<------------------------
@@ -371,8 +371,7 @@ void flamecheck(){
 }
 
 
-void loop()
-{
+void loop(){
   
   if (millis() - regimTimer >= 500) {
     regimTimer = millis();
@@ -423,17 +422,17 @@ void loop()
     myTimerDIsplay=millis();
     myOLED.clrScr(); // очищаем экран
     myOLED.setFont(RusFont); // Устанавливаем русский шрифт
-    myOLED.print("Ntvgthfnehf", CENTER, 0); // Выводим надпись "Температура"
+    myOLED.print(F("Ntvgthfnehf"), CENTER, 0); // Выводим надпись "Температура"
     myOLED.setFont(MediumNumbers);
     myOLED.print(String(temperVal), CENTER, 9);   // Отображение температуры
     
     myOLED.setFont(RusFont); 
-    myOLED.print("Gkfvz", LEFT, 33); // Выводим надпись "Пламя"
+    myOLED.print(F("Gkfvz"), LEFT, 33); // Выводим надпись "Пламя"
     myOLED.setFont(SmallFont);
     myOLED.print(String(flamePersent,1)+"%", LEFT, 43); // вывод текста
 
     myOLED.setFont(RusFont);
-    myOLED.print("Dtyn", RIGHT, 33); // Выводим надпись "Вент"
+    myOLED.print(F("Dtyn"), RIGHT, 33); // Выводим надпись "Вент"
     myOLED.setFont(SmallFont);
     myOLED.print(String(vspeed)+"%", RIGHT, 43); // вывод текста
 
@@ -441,22 +440,22 @@ void loop()
     String regimStr;
     switch (regim) {
       case 0:
-        regimStr = "|J;blfybt|";
+        regimStr = F("|J;blfybt|");
       break;
       case 1:
         regimStr = "|Hjp;br "+String(rozhikCount+1)+ "|";
       break;
       case 2:
-        regimStr = "|Yfuhtd|";
+        regimStr = F("|Yfuhtd|");
       break;
       case 3:
-        regimStr = "|Gjllth;|";
+        regimStr = F("|Gjllth;|");
       break;
       case 4:
-        regimStr = "|Ds;bufybt|";
+        regimStr = F("|Ds;bufybt|");
       break;
       case 5:
-        regimStr = "|Ji hjp;buf|";
+        regimStr = F("|Ji hjp;buf|");
       break;
     
     }
@@ -466,19 +465,19 @@ void loop()
     myOLED.setFont(RusFont); 
     switch (prregim) {
       case 10:
-        status = "Gjlrblsdfybt";
+        status = F("Gjlrblsdfybt");
       break;
       case 11:
         status = "Gjlrblsdfybt "+String(countTimer);
       break;
       case 12:
-        status = "Kfvgf";
+        status = F("Kfvgf");
       break;
       case 13:
-        status = "Db;e gkfvz - abrcfwbz";
+        status = F("Db;e gkfvz - abrcfwbz");
       break;
       case 14:
-        status = "Hfpujhtkjcm!";
+        status = F("Hfpujhtkjcm!");
       break;
       case 21:
         status = "Gjlrblsdfybt "+String(conf.t_nagrev_shnek)+'c';
@@ -514,7 +513,7 @@ void loop()
     temperVal = TempGetTepr();
   }
 
-}
+} //End loop
 
 int flameGet() {
   int flame = analogRead(analogPin);
