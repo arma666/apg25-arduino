@@ -1,12 +1,12 @@
 #include <SPI.h>
 #include <Ethernet2.h>
 #include <EEPROM.h>
-int myregimAddr= 0;
+byte rAddr= 0;
 int mySettingAddr = sizeof(int);
 unsigned long countTimer = 0;
 
-uint32_t myTimerFlame, myTimertemp, myTimerDIsplay, myTimerVent, btnTimer, releTimer;
-uint32_t regimTimer, shnekTimer,rozhikTimer, flamefixTimer, waitshnekTimer, flameTimer=0, vizhTimer;
+int16_t TFlame, TTemp, timer500, Tbtn;
+int32_t Tshnek,Trozhik, Tflamefix, waitTshnek, Tflame=0, Tvizh;
 //Настройки ------------>
 struct SETTINGS {
   byte t_rozhik_shnek; //Время подкидывания при розжиге 
@@ -25,7 +25,7 @@ struct SETTINGS {
   byte t_vizh; //Время выжигания после пламя = 0
 };
 
-SETTINGS conf = {
+SETTINGS defaultSettings = {
   10, //Время подкидывания при розжиге 
   8, //Время подкидывания при нагреве
   5, //Время подкидывания при подержании
@@ -41,6 +41,7 @@ SETTINGS conf = {
   4, //Гистерезис
   10 //Время выжигания после пламя = 0
 };
+SETTINGS conf; 
 //<------------------------
 
 //Режим ------------>
@@ -98,6 +99,18 @@ extern uint8_t SmallFont[]; // Базовый шрифт без поддержк
 
 //<---------------------------------
 
+
+// Лан ------------------------->
+// MAC-адрес вашего Arduino
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x29, 0xED};
+// Создаем сервер на порту 80
+EthernetServer server(80);
+EthernetClient client;
+String defIP = "";
+//<---------------------------------
+
+
+
 int percentToValue(int percent) { //Функция перевода процентов в число для вкентилятора
   if (percent == 0){
     return 0;
@@ -109,12 +122,37 @@ int percentToValue(int percent) { //Функция перевода процен
 void setup()
 {
   //Читае настройки из памяти
-  regim = EEPROM.read(myregimAddr);
+  regim = EEPROM.read(rAddr);
    if (regim == 0xFF) {
     regim = 0;
-    EEPROM.write(myregimAddr, regim);
+    EEPROM.write(rAddr, regim);
   } 
+  EEPROM.get(rAddr+1, conf);
+  bool hasData = true;
+  for (size_t i = 0; i < sizeof(SETTINGS); i++) {
+    if (EEPROM.read(rAddr+1 + i) == 255) { 
+      hasData = false;
+      break;
+    }
+  }
+  // Если данных нет в EEPROM, используйте дефолтные значения
+  if (!hasData) {
+    conf = defaultSettings;
+    EEPROM.put(rAddr+1, conf);
+    //Serial.println("Default settings written to EEPROM");
+  } else {
+    //Serial.println("Settings read from EEPROM:");
+  }
 
+  //Ethernet
+  Ethernet.begin(mac);
+  //Узнаём ip
+  defIP = "";
+  for (byte thisByte = 0; thisByte < 4; thisByte++) {
+    defIP+=Ethernet.localIP()[thisByte];
+    defIP+=".";
+  }
+  server.begin();
 
   pinMode(lampa, OUTPUT);    
   pinMode(shnek, OUTPUT);    
@@ -129,22 +167,22 @@ void setup()
 
   //Блок какой режим был до выключения
   if (regim==1 || regim==2 ||regim==3){
-    int flametemp = flameGet();
+    byte flametemp = flameGet();
     //Проверяем есть ли пламя
     if (flametemp>conf.t_flame) { //пламя больше пламени фиксации
       regim = 1;
-      EEPROM.write(myregimAddr, regim);
+      EEPROM.write(rAddr, regim);
       prregim =14;
     }
     if (flametemp<conf.t_flame){ //если меньше - режим розжига
       regim = 1;
-      EEPROM.write(myregimAddr, regim);
+      EEPROM.write(rAddr, regim);
       prregim =10;
     }
   }
   if (regim == 4){
     prregim = 8;
-    flameTimer = 0;
+    Tflame = 0;
     lampaStart=false;
     shnekStart=false;
     vspeedtemp = 100;
@@ -153,19 +191,175 @@ void setup()
 }
 
 
+//Функция веб-морды --------------->
+void web(){
+  EthernetClient ethClient = server.available();
+  if (ethClient) {
+    // Ждем, пока клиент подключится и отправит запрос
+    while (!ethClient.available()) {
+      delay(1);
+    }
+    // Читаем первую строку запроса
+    String request = ethClient.readStringUntil('\r');
+    ethClient.flush();
+    if (processSettingsUpdate(request)){
+      if (sendparams(ethClient,request)){
+        if (sendstate(ethClient,request)){
+          if (webpressbutton(ethClient,request)){
+            sendSettingsPage(ethClient);
+          }
+        }
+      }
+    } else {
+      ethClient.println(F("HTTP/1.1 200 OK"));
+    }
+    
+    // Закрываем соединение
+    ethClient.stop();
+  }
+}
+
+boolean webpressbutton(EthernetClient& ethClient, String request) {
+  if (request.indexOf("pressbutton") != -1 ){
+    pressputton();
+  return false;
+  } else {
+    return true;
+  }
+}
+
+
+//Посылаем текущее состояние
+boolean sendstate(EthernetClient& ethClient, String request) {
+  if (request.indexOf("getstate") != -1 ){
+    ethClient.println(F("HTTP/1.1 200 OK"));
+    ethClient.println(F("Content-Type: text/JSON"));
+    ethClient.println();
+    ethClient.print("{");
+    ethClient.print("\"regim\":" + String(regim) + ",");
+    ethClient.print("\"shnekStart\":" + String(shnekStart) + ",");
+    ethClient.print("\"lampaStart\":" + String(lampaStart) + ",");
+    ethClient.print("\"vspeed\":" + String(vspeed) + ",");
+    ethClient.print("\"flamePersent\":" + String(flamePersent) + ",");
+    ethClient.print("\"temperVal\":" + String(temperVal) + "}");
+    return false;
+  } else {
+    return true;
+  }
+}
+
+
+
+//Посылаем текущие настройки
+boolean sendparams(EthernetClient& ethClient, String request) {
+  if (request.indexOf("getparams") != -1 ){
+    ethClient.println(F("HTTP/1.1 200 OK"));
+    ethClient.println(F("Content-Type: text/JSON"));
+    ethClient.println();
+    ethClient.print("{");
+    ethClient.print("\"t_rozhik_shnek\":" + String(conf.t_rozhik_shnek) + ",");
+    ethClient.print("\"t_nagrev_shnek\":" + String(conf.t_nagrev_shnek) + ",");
+    ethClient.print("\"t_podderg_shnek\":" + String(conf.t_podderg_shnek) + ",");
+    ethClient.print("\"t_shnek_step\":" + String(conf.t_shnek_step) + ",");
+    ethClient.print("\"t_rozhik\":" + String(conf.t_rozhik) + ",");
+    ethClient.print("\"flame_fix\":" + String(conf.flame_fix) + ",");
+    ethClient.print("\"t_flame\":" + String(conf.t_flame) + ",");
+    ethClient.print("\"vent_rozhik\":" + String(conf.vent_rozhik) + ",");
+    ethClient.print("\"vent_nagrev\":" + String(conf.vent_nagrev) + ",");
+    ethClient.print("\"vent_podderg\":" + String(conf.vent_podderg) + ",");
+    ethClient.print("\"vent_ogidanie\":" + String(conf.vent_ogidanie) + ",");
+    ethClient.print("\"temp\":" + String(conf.temp) + ",");
+    ethClient.print("\"gister\":" + String(conf.gister) + ",");
+    ethClient.print("\"t_vizh\":" + String(conf.t_vizh)+" }");
+
+
+    return false;
+  } else {
+    return true;
+  }
+}
+
+//Устанавливаем настройку и записываем в память
+void setval(String keyString, int val) {
+
+  if (keyString == F("t_rozhik_shnek")) {
+    conf.t_rozhik_shnek = val;
+  } else if (keyString == F("t_nagrev_shnek")) {
+    conf.t_nagrev_shnek = val;
+  } else if (keyString == F("t_podderg_shnek")) {
+    conf.t_podderg_shnek = val;
+  } else if (keyString == F("t_shnek_step")) {
+    conf.t_shnek_step = val;
+  } else if (keyString == F("t_rozhik")) {
+    conf.t_rozhik = val;
+  } else if (keyString == F("flame_fix")) {
+    conf.flame_fix = val;
+  } else if (keyString == F("t_flame")) {
+    conf.t_flame = val;
+  } else if (keyString == F("vent_rozhik")) {
+    conf.vent_rozhik = val;
+  } else if (keyString == F("vent_nagrev")) {
+    conf.vent_nagrev = val;
+  } else if (keyString == F("vent_podderg")) {
+    conf.vent_podderg = val;
+  } else if (keyString == F("vent_ogidanie")) {
+    conf.vent_ogidanie = val;
+  } else if (keyString == F("temp")) {
+    conf.temp = val;
+  } else if (keyString == F("gister")) {
+    conf.gister = val;
+  } else if (keyString == F("t_vizh")) {
+    conf.t_vizh = val;
+  } 
+}
+
+//Принимаем изменившуюся настройку
+boolean processSettingsUpdate(String request) {
+  int paramStart = request.indexOf('?') + 1;
+  // Поиск конца названия параметра
+  int paramNameEnd = request.indexOf('=', paramStart);
+  // Поиск конца значения параметра
+  int paramValueEnd = request.indexOf(' ', paramNameEnd);
+  if (paramStart != -1 && paramNameEnd != -1 && paramValueEnd != -1) {
+    String paramName = request.substring(paramStart, paramNameEnd);
+    String paramValue = request.substring(paramNameEnd + 1, paramValueEnd);
+    setval(paramName.c_str(), paramValue.toInt());
+    EEPROM.put(rAddr+1, conf);
+    return false;
+  } else {
+    return true;
+  }
+}
+
+
+//Отправляем стартовую страницу
+void sendSettingsPage(EthernetClient& ethClient) {
+  // Отправляем HTTP-заголовок
+  ethClient.println(F("HTTP/1.1 200 OK"));
+  ethClient.println(F("Content-Type: text/html"));
+  ethClient.println();
+
+  // Отправляем HTML-страницу с формой для изменения значений
+  ethClient.println(F("<html><head>"));
+  ethClient.println(F("<meta name='viewport' content='width=device-width, initial-scale=1.0'>"));
+  ethClient.println(F("<style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style>"));
+  ethClient.println(F("</head><body><iframe id='i'></iframe><script>(async function l(url, id) {"));
+  ethClient.println(F("document.getElementById('i').srcdoc = await (await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html')).text();"));
+  ethClient.println(F("})()</script></body></html>"));
+}
 
 
 //Функция нажатия кнопки --------------->
 void pressputton(){
   if (regim == 0 ){
     regim = 1;
-    EEPROM.write(myregimAddr, regim);
+    EEPROM.write(rAddr, regim);
     prregim =10;
   } else if (regim == 4 || regim == 5) {
     regim = 0;
-    EEPROM.write(myregimAddr, regim);
+    EEPROM.write(rAddr, regim);
     prregim = 0;
-    flameTimer=0;
+    Tflame=0;
     shnekStart=false;
     lampaStart=false;
     vspeedtemp = 0;
@@ -173,9 +367,9 @@ void pressputton(){
   else {
     int tregim = regim;
     regim = 4;
-    EEPROM.write(myregimAddr, regim);
+    EEPROM.write(rAddr, regim);
     prregim = 8;
-    flameTimer = 0;
+    Tflame = 0;
     lampaStart=false;
     shnekStart=false;
     vspeedtemp = 100;
@@ -204,15 +398,15 @@ void control() {
   switch (prregim) {
       case 8:
         if (flamePersent == 0) {
-          vizhTimer = millis();
+          Tvizh = millis();
           prregim = 9;
         }
       break;
       case 9:
-        if (vizhTimer+(conf.t_vizh*1000L)<millis()){
+        if (Tvizh+(conf.t_vizh*1000L)<millis()){
           prregim = 0;
           regim = 0;
-          EEPROM.write(myregimAddr, regim);
+          EEPROM.write(rAddr, regim);
           shnekStart=false;
           lampaStart=false;
           vspeedtemp = 0;
@@ -221,21 +415,21 @@ void control() {
       case 10:
         prregim = 11;
         shnekStart=true;
-        shnekTimer = millis();
+        Tshnek = millis();
         countTimer=conf.t_rozhik_shnek;
       break;
       case 11:
-        countTimer=(shnekTimer+(conf.t_rozhik_shnek*1000L) - millis())/1000;
-        if (shnekTimer+(conf.t_rozhik_shnek*1000L) < millis()) {
+        countTimer=(Tshnek+(conf.t_rozhik_shnek*1000L) - millis())/1000;
+        if (Tshnek+(conf.t_rozhik_shnek*1000L) < millis()) {
           shnekStart=false;
           lampaStart=true;
           vspeedtemp = conf.vent_rozhik;
           prregim = 12;
-          rozhikTimer = millis();
+          Trozhik = millis();
         }
       break;
       case 12:
-        if (rozhikTimer+(conf.t_rozhik*1000L) < millis()){
+        if (Trozhik+(conf.t_rozhik*1000L) < millis()){
           //Serial.println("fuck");
           if (!rozhikCount) {
             rozhikCount++;
@@ -245,17 +439,17 @@ void control() {
             rozhikCount=0;
             prregim = 19;
             regim = 5;
-            EEPROM.write(myregimAddr, regim);
+            EEPROM.write(rAddr, regim);
             lampaStart=false;
           }
         }
         if (flamePersent > conf.t_flame) {
-          flamefixTimer = millis();
+          Tflamefix = millis();
           prregim = 13;
         }
       break;
       case 13:
-        if (flamePersent > conf.t_flame && flamefixTimer+(conf.flame_fix*1000L)< millis()) {
+        if (flamePersent > conf.t_flame && Tflamefix+(conf.flame_fix*1000L)< millis()) {
           //Если разгорелось
           lampaStart=false;
           prregim = 14;
@@ -269,11 +463,11 @@ void control() {
         if (temperVal>conf.temp-conf.gister) {
           //Если болше заданной температуры то поддержка
           regim = 3;
-          EEPROM.write(myregimAddr, regim);
+          EEPROM.write(rAddr, regim);
           prregim = 30;
         } else {
           regim = 2;
-          EEPROM.write(myregimAddr, regim);
+          EEPROM.write(rAddr, regim);
           prregim = 20;
         }
       break;
@@ -284,28 +478,28 @@ void control() {
       case 21: 
         if (temperVal>conf.temp) { //Если температура богльше то режим поддержания
           regim = 3;
-          EEPROM.write(myregimAddr, regim);
+          EEPROM.write(rAddr, regim);
           prregim = 30;
         } else {
           shnekStart=true;
-          shnekTimer = millis();
+          Tshnek = millis();
           prregim = 22;
         }
       break;
       case 22: 
-        if (shnekTimer+(conf.t_nagrev_shnek*1000L)<millis()){
+        if (Tshnek+(conf.t_nagrev_shnek*1000L)<millis()){
           shnekStart=false;
-          waitshnekTimer = millis();
+          waitTshnek = millis();
           prregim = 23;
         }
       break;
       case 23: 
         if (temperVal>conf.temp) { //Если температура богльше то режим поддержания
           regim = 3;
-          EEPROM.write(myregimAddr, regim);
+          EEPROM.write(rAddr, regim);
           prregim = 30;
         }
-        if (waitshnekTimer+(conf.t_shnek_step*1000L)<millis()){
+        if (waitTshnek+(conf.t_shnek_step*1000L)<millis()){
           prregim = 21;
         }
       break;
@@ -316,28 +510,28 @@ void control() {
       case 31: 
         if (temperVal<conf.temp-conf.gister) { //Если темп меньше гистерезиса то нагрев
           regim = 2;
-          EEPROM.write(myregimAddr, regim);
+          EEPROM.write(rAddr, regim);
           prregim = 20;
         } else {
           shnekStart=true;
-          shnekTimer = millis();
+          Tshnek = millis();
           prregim = 32;
         }
       break;
       case 32: 
-        if (shnekTimer+(conf.t_podderg_shnek*1000L)<millis()){
+        if (Tshnek+(conf.t_podderg_shnek*1000L)<millis()){
           shnekStart=false;
-          waitshnekTimer = millis();
+          waitTshnek = millis();
           prregim = 33;
         }
       break;
       case 33: 
         if (temperVal<conf.temp-conf.gister) { //Если темп меньше гистерезиса то нагрев
           regim = 2;
-          EEPROM.write(myregimAddr, regim);
+          EEPROM.write(rAddr, regim);
           prregim = 20;
         }
-        if (waitshnekTimer+(conf.t_shnek_step*1000L)<millis()){
+        if (waitTshnek+(conf.t_shnek_step*1000L)<millis()){
           prregim = 31;
         }
       break;
@@ -346,24 +540,24 @@ void control() {
 
 //Функция проверки не патух ли котел
 void flamecheck(){
-  if (regim && regim!=1 && regim!=5 && regim!=4 && !flameTimer){
+  if (regim && regim!=1 && regim!=5 && regim!=4 && !Tflame){
     Serial.println("Chech flame");
     if (flamePersent < conf.t_flame) {
           //Если пламя пропало, то возможно его забросало и оно разгориться, ждём 20 секунд
-          flameTimer=millis();
+          Tflame=millis();
     }
   }
-  if (flameTimer && flameTimer+(10*1000L)<millis()){
+  if (Tflame && Tflame+(10*1000L)<millis()){
     if (flamePersent < conf.t_flame){
       //не разожглось, уходим в ошибку
       shnekStart=false;
       prregim = 19;
       regim = 5;
-      EEPROM.write(myregimAddr, regim);
+      EEPROM.write(rAddr, regim);
       lampaStart=false;
-      flameTimer=0;
+      Tflame=0;
     } else {
-      flameTimer=0;
+      Tflame=0;
     }
   }
 
@@ -373,16 +567,13 @@ void flamecheck(){
 
 void loop(){
   
-  if (millis() - regimTimer >= 500) {
-    regimTimer = millis();
+  if (millis() - timer500 >= 500) {
+    timer500 = millis();
+   
     control();
     flamecheck();
-  }
 
-
-  //блок реле
-  if (millis() - releTimer >= 500) {
-    releTimer = millis();
+    //блок реле
     if (shnekStart){  
       digitalWrite(shnek, LOW); // Включаем реле
     } else {
@@ -393,33 +584,17 @@ void loop(){
     } else {
       digitalWrite(lampa, HIGH); // Выключаем реле
     }
-  }
 
-  //блок кнопки
-  bool btnState = !digitalRead(4);
-  if (btnState && !bflag && millis() - btnTimer > 100) { //Кнопку нажали
-    bflag = true;
-    btnTimer = millis();
-  } 
-  if (!btnState && bflag && millis() - btnTimer > 100) {  //Кнопку отпустили
-    bflag = false;
-    btnTimer = millis();
-    pressputton();
-  }
-
-  //Блок вентилятора
-  if (millis() - myTimerVent >= 500) {
-    myTimerVent=millis();
+    //Блок вентилятора
     if (vspeed != vspeedtemp) {
       vspeed = vspeedtemp;
       analogWrite(vent, 255);
     } else {
       analogWrite(vent, percentToValue(vspeed));
     }
-  }
-  //Блок дисплея
-  if (millis() - myTimerDIsplay >= 500) {
-    myTimerDIsplay=millis();
+
+
+    //Блок дисплея
     myOLED.clrScr(); // очищаем экран
     myOLED.setFont(RusFont); // Устанавливаем русский шрифт
     myOLED.print(F("Ntvgthfnehf"), CENTER, 0); // Выводим надпись "Температура"
@@ -493,29 +668,45 @@ void loop(){
       break;
       default:
         myOLED.setFont(SmallFont);
-        status = "192.168.88.16";
+        status = defIP;
     }
     myOLED.print(status, CENTER, 57); // Выводим надпись "Айпишник"
-
-
     myOLED.update();
+
+  }
+
+
+
+
+  //блок кнопки
+  bool btnState = !digitalRead(4);
+  if (btnState && !bflag && millis() - Tbtn > 100) { //Кнопку нажали
+    bflag = true;
+    Tbtn = millis();
   } 
+  if (!btnState && bflag && millis() - Tbtn > 100) {  //Кнопку отпустили
+    bflag = false;
+    Tbtn = millis();
+    pressputton();
+  }
+
+  
 
   //Блок пламени
-  if (millis() - myTimerFlame >= 1000) {
-    myTimerFlame = millis();
+  if (millis() - TFlame >= 1000) {
+    TFlame = millis();
     int flame = analogRead(analogPin);
     flamePersent  = flameGet();
   }
   //Блок температуры
-  if (millis() - myTimertemp >= 5000) {
-    myTimertemp = millis();
+  if (millis() - TTemp >= 5000) {
+    TTemp = millis();
     temperVal = TempGetTepr();
   }
 
 } //End loop
 
-int flameGet() {
+byte flameGet() {
   int flame = analogRead(analogPin);
     if (flame<= 1000) {
       return 100 - ((float)flame / 1000.0) * 100;
