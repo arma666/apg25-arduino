@@ -16,6 +16,7 @@ struct OPT {
   int32_t waitTshnek;
   int32_t Tflame;
   int32_t Tvizh;
+  int16_t TFlame;
   int16_t TTemp;
   int16_t timer500;
   int16_t Tbtn;
@@ -230,7 +231,7 @@ void web(){
     ethClient.flush();
     if (processSettingsUpdate(request)){
       if (sendparams(ethClient,request)){
-        if (sendstate(ethClient,request)){
+        if (sendst(ethClient,request)){
           if (webpressbutton(ethClient,request)){
             sendSettingsPage(ethClient);
           }
@@ -253,7 +254,7 @@ boolean webpressbutton(EthernetClient& ethClient, String request) {
 
 
 //Посылаем текущее состояние
-boolean sendstate(EthernetClient& ethClient, String request) {
+boolean sendst(EthernetClient& ethClient, String request) {
   if (request.indexOf(F("getstate")) != -1 ){
     ethClient.println(F("HTTP/1.1 200 OK"));
     //ethClient.println(F("Content-Type: text/JSON"));
@@ -277,23 +278,36 @@ boolean sendstate(EthernetClient& ethClient, String request) {
 boolean sendparams(EthernetClient& ethClient, String request) {
   if (request.indexOf(F("getparams")) != -1 ){
     ethClient.println(F("HTTP/1.1 200 OK"));
-    //ethClient.println(F("Content-Type: text/JSON"));
     ethClient.println();
-    ethClient.print("{");
-    ethClient.print("\"troz_sh\":" + String(conf.troz_sh) + ",");
-    ethClient.print("\"tnag_sh\":" + String(conf.tnag_sh) + ",");
-    ethClient.print("\"tpod_sh\":" + String(conf.tpod_sh) + ",");
-    ethClient.print("\"tsh_st\":" + String(conf.tsh_st) + ",");
-    ethClient.print("\"troz\":" + String(conf.troz) + ",");
-    ethClient.print("\"fl_fix\":" + String(conf.fl_fix) + ",");
-    ethClient.print("\"tfl\":" + String(conf.tfl) + ",");
-    ethClient.print("\"vroz\":" + String(conf.vroz) + ",");
-    ethClient.print("\"v_nag\":" + String(conf.v_nag) + ",");
-    ethClient.print("\"v_pod\":" + String(conf.v_pod) + ",");
-    ethClient.print("\"v_og\":" + String(conf.v_og) + ",");
-    ethClient.print("\"temp\":" + String(conf.temp) + ",");
-    ethClient.print("\"gister\":" + String(conf.gister) + ",");
-    ethClient.print("\"t_vizh\":" + String(conf.t_vizh)+" }");
+    ethClient.print(F("{\"troz_sh\":"));
+    ethClient.print(conf.troz_sh);
+    ethClient.print(F(",\"tnag_sh\":"));
+    ethClient.print(conf.tnag_sh);
+    ethClient.print(F(",\"tpod_sh\":"));
+    ethClient.print(conf.tpod_sh);
+    ethClient.print(F(",\"tsh_st\":"));
+    ethClient.print(conf.tsh_st);
+    ethClient.print(F(",\"troz\":"));
+    ethClient.print(conf.troz);
+    ethClient.print(F(",\"fl_fix\":"));
+    ethClient.print(conf.fl_fix);
+    ethClient.print(F(",\"tfl\":"));
+    ethClient.print(conf.tfl);
+    ethClient.print(F(",\"vroz\":"));
+    ethClient.print(conf.vroz);
+    ethClient.print(F(",\"v_nag\":"));
+    ethClient.print(conf.v_nag);
+    ethClient.print(F(",\"v_pod\":"));
+    ethClient.print(conf.v_pod);
+    ethClient.print(F(",\"v_og\":"));
+    ethClient.print(conf.v_og);
+    ethClient.print(F(",\"temp\":"));
+    ethClient.print(conf.temp);
+    ethClient.print(F(",\"gister\":"));
+    ethClient.print(conf.gister);
+    ethClient.print(F(",\"t_vizh\":"));
+    ethClient.print(conf.t_vizh);
+    ethClient.print("}");
 
     return false;
   } else {
@@ -302,7 +316,7 @@ boolean sendparams(EthernetClient& ethClient, String request) {
 }
 
 //Устанавливаем настройку и записываем в память
-void setval(String keyString, int val) {
+void setval(const String keyString, const byte val) {
 
   if (keyString == F("troz_sh")) {
     conf.troz_sh = val;
@@ -356,18 +370,13 @@ boolean processSettingsUpdate(String request) {
 
 //Отправляем стартовую страницу
 void sendSettingsPage(EthernetClient& ethClient) {
-  // Отправляем HTTP-заголовок
+  // Отправляем HTTP-заголовок и начало страницы
   ethClient.println(F("HTTP/1.1 200 OK"));
   ethClient.println(F("Content-Type: text/html"));
   ethClient.println();
 
   // Отправляем HTML-страницу с формой для изменения значений
-  ethClient.println(F("<html><head>"));
-  ethClient.println(F("<meta name='viewport' content='width=device-width, initial-scale=1.0'>"));
-  ethClient.println(F("<style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style>"));
-  ethClient.println(F("</head><body><iframe id='i'></iframe><script>(async function l(url,id){"));
-  ethClient.println(F("document.getElementById('i').srcdoc=await(await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html')).text()"));
-  ethClient.println(F("})()</script></body></html>"));
+  ethClient.print(F("<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style></head><body><iframe id='i'></iframe><script>(async function l(url,id){document.getElementById('i').srcdoc=await(await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html')).text()})()</script></body></html>"));
 }
 
 
@@ -375,11 +384,9 @@ void sendSettingsPage(EthernetClient& ethClient) {
 void pressputton(){
   if (opt.regim == 0 ){
     opt.regim = 1;
-    rwrite();
     opt.prregim =10;
   } else if (opt.regim == 4 || opt.regim == 5) {
     opt.regim = 0;
-    rwrite();
     opt.prregim = 0;
     opt.Tflame=0;
     shnekStart=false;
@@ -387,9 +394,8 @@ void pressputton(){
     vspeedtemp = 0;
   }
   else {
-    int tregim = opt.regim;
+    //byte tregim = opt.regim;
     opt.regim = 4;
-    rwrite();
     opt.prregim = 8;
     opt.Tflame = 0;
     lampaStart=false;
@@ -397,8 +403,10 @@ void pressputton(){
     vspeedtemp = 100;
   }
 
-
+  rwrite();
 }
+
+
 //<----------------------------------------
 /*
 8  - выжигание
@@ -586,8 +594,6 @@ void flamecheck(){
       opt.Tflame=0;
     }
   }
-
-
 }
 
 
