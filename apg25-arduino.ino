@@ -148,6 +148,7 @@ int percentToValue(int percent) { //Функция перевода процен
 
 void setup()
 {
+  //Serial.begin(9600);
   //Читае настройки из памяти
   opt.regim = EEPROM.read(rAddr);
    if (opt.regim == 0xFF) {
@@ -217,29 +218,25 @@ void setup()
 
 }
 
-
 //Функция веб-морды --------------->
 void web(){
   EthernetClient ethClient = server.available();
   if (ethClient) {
-    // Ждем, пока клиент подключится и отправит запрос
-    while (!ethClient.available()) {
-      delay(1);
-    }
-    // Читаем первую строку запроса
-    String request = ethClient.readStringUntil('\r');
-    ethClient.flush();
-    if (processSettingsUpdate(request)){
-      if (sendparams(ethClient,request)){
-        if (sendst(ethClient,request)){
-          if (webpressbutton(ethClient,request)){
-            sendSettingsPage(ethClient);
+    if (ethClient.available()) {
+      String request = ethClient.readStringUntil('\r');
+      ethClient.flush();
+      if (processSettingsUpdate(request)){
+        if (sendparams(ethClient,request)){
+          if (sendst(ethClient,request)){
+            if (webpressbutton(ethClient,request)){
+               sendSettingsPage(ethClient);
+            }
           }
-        }
-      }
-    } 
+       }
+      } 
     // Закрываем соединение
     ethClient.stop();
+    }
   }
 }
 
@@ -257,7 +254,7 @@ boolean webpressbutton(EthernetClient& ethClient, String request) {
 boolean sendst(EthernetClient& ethClient, String request) {
   if (request.indexOf(F("getstate")) != -1 ){
     ethClient.println(F("HTTP/1.1 200 OK"));
-    //ethClient.println(F("Content-Type: text/JSON"));
+    ethClient.println(F("Content-Type: text/JSON"));
     ethClient.println();
     ethClient.print("{");
     ethClient.print("\"regim\":" + String(opt.regim) + ",");
@@ -598,12 +595,12 @@ void flamecheck(){
 
 
 void loop(){
-  web();
+  
   if (millis() - opt.timer500 >= 500) {
     opt.timer500 = millis();
-   
-    control();
-    flamecheck();
+    
+    //control();
+    //flamecheck();
 
     //блок реле
     if (shnekStart){  
@@ -704,10 +701,8 @@ void loop(){
     }
     myOLED.print(status, CENTER, 57); // Выводим надпись "Айпишник"
     myOLED.update();
-
+    
   }
-
-
 
 
   //блок кнопки
@@ -735,7 +730,7 @@ void loop(){
     opt.TTemp = millis();
     temperVal = TempGetTepr();
   }
-
+  
 } //End loop
 
 byte flameGet() {
