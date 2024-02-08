@@ -23,7 +23,7 @@
             <div class="card mb-4 shadow-sm">
               <div class="card-body">
                 <h5 class="card-title">Текущее состояние</h5>
-                <p class="card-text">{{ regim }} 
+                <p class="card-text">{{ regimstr }} 
                     <span v-if="lampaStart === 1"> - Лампа</span>
                     <span v-if="shnekStart === 1"> - Шнек</span>
                 </p>
@@ -121,6 +121,7 @@
                     curent_val: 0,
                     
                     regim: 0,
+                    regimstr: "",
                     temperVal: 40,
                     flamePersent: 5,
                     vspeed: 0,
@@ -204,7 +205,8 @@
                     axios.get('/getstate')
                         .then(response => {
                             const data = response.data;
-                            this.regim = this.convertRegim(data.regim);
+                            this.regim=data.regim;
+                            this.regimstr = this.convertRegim(data.regim);
                             this.temperVal = data.temperVal;
                             this.flamePersent = data.flamePersent;
                             this.vspeed = data.vspeed;
