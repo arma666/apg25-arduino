@@ -220,8 +220,8 @@
                 loadSetiings(){
                     axios.get('/getparams')
                     .then(response => {
-                        settings = response.data;
-                    })
+                        this.settings = response.data;
+                    });
                 },
                 convertRegim(value) {
                     switch (value) {
