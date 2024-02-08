@@ -217,6 +217,12 @@
                             console.error(error);
                         });
                 },
+                loadSetiings(){
+                    axios.get('/getparams')
+                    .then(response => {
+                        settings = response.data;
+                    })
+                },
                 convertRegim(value) {
                     switch (value) {
                         case 0:
@@ -249,6 +255,7 @@
                 },
                 openSettings() {
                     this.showSettings = true;
+                    this.loadSetiings();
                 },
                 closeSettings() {
                     this.showSettings = false;
