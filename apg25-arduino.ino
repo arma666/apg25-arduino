@@ -197,7 +197,7 @@ void rload(){
 void setup() {
   Serial.begin(115200);
   //Сеть
-  netstart();
+  //netstart();
   //Вентилятор
   pinMode(vent, OUTPUT);
 
