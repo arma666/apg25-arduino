@@ -1,25 +1,38 @@
+#include <SSD1306Wire.h>
+#include "fontsRus.h"
+#include "fonts.h"
+#include <EEPROM.h>
+#include <ArduinoJson.h>
+#include <SPIFFS.h>
 #include <SPI.h>
 #include <Ethernet2.h>
-#include <EEPROM.h>
-
 byte rAddr= 0;
-int mySettingAddr = sizeof(int);
-unsigned long countTimer = 0;
+SSD1306Wire display(0x3c, SDA, SCL); // SDA - IO5 (D1), SCL - IO4 (D2) 
 
-//int16_t opt.TTemp, opt.timer500, opt.Tbtn;
-//int32_t Tshnek,opt.Trozhik, opt.opt.Tflamefix, opt.waitTshnek, opt.Tflame=0, opt.Tvizh;
+// Температура ------------------------->
+#include <OneWire.h>
+OneWire  ds(14);
+byte addr[8];
+float temperVal = 0; // Глобальная температура
+//<---------------------------------
 
+//Настройки
 struct OPT {
-  int32_t Tshnek;
-  int32_t Trozhik;
-  int32_t Tflamefix;
-  int32_t waitTshnek;
-  int32_t Tflame;
-  int32_t Tvizh;
-  int16_t TFlame;
-  int16_t TTemp;
-  int16_t timer500;
-  int16_t Tbtn;
+  unsigned long  Tshnek;
+  unsigned long  Trozhik;
+  unsigned long  Tflamefix;
+  unsigned long  waitTshnek;
+  unsigned long Tflame;
+  unsigned long Tvizh;
+  unsigned long  TFlame;
+  unsigned long TTemp;
+  unsigned long timer500;
+  unsigned long Tbtn;
+  float flamePersent = 0;
+  byte vspeed = 0;
+  String defIP = "192.168.88.10";
+  byte countTimer;
+  byte rozhikCount = 0;
   /*
 Режимы - -
   0 - Ожидание
@@ -31,7 +44,6 @@ struct OPT {
 */
   byte regim;
   byte prregim;
-  byte rozhikCount;
 };
 OPT opt;
 //Настройки ------------>
@@ -69,74 +81,60 @@ SETTINGS defaultSettings = {
   10 //Время выжигания после пламя = 0
 };
 SETTINGS conf; 
+
+// Датчик огня ----------->
+byte analogPin = 13;
+//String flame = "0";
 //<------------------------
 
-//Режим ------------>
-// byte regim;
-// byte opt.prregim = 0;
-// byte opt.rozhikCount = 0;
-/*
-Режимы - -
-  0 - Ожидание
-  1 - Розжик
-  2 - Нагрев
-  3 - Поддержание
-  4 - Выжигание
-  5 - Ошибка розжига
-*/
 // Реле ------------>
-const byte shnek = 8;
-const byte lampa = 7;
+const byte shnek = 17;
+const byte lampa = 16;
 bool shnekStart = false;
 bool lampaStart = false;
 //<------------------------
+
 // Кнопка ----------->
 bool bflag = false;
+byte bpin = 32;
 //<------------------------
 
-
 // Вентилятор ----------->
-const byte vent = 5;
+const byte vent = 25;
 byte vspeed = 0; //скорость вентилятора в процентах
 byte vspeedtemp = 0;
 //<------------------------
 
 
-// Датчик огня ----------->
-byte analogPin = A0;
-String flame = "0";
-float flamePersent = 0; //Глобальная пламя
-//<------------------------
-
-// Температура ------------------------->
-#include <OneWire.h>
-OneWire  ds(3);
-byte addr[8];
-float temperVal = 0; // Глобальная температура
-//<---------------------------------
-
-
-// Дисплей ------------------------->
-#include <OLED_I2C.h>
-OLED  myOLED(SDA, SCL); 
-extern uint8_t SmallFont[];
-extern uint8_t RusFont[]; // Русский шрифт
-extern uint8_t MediumNumbers[]; // Подключение больших шрифтов
-extern uint8_t SmallFont[]; // Базовый шрифт без поддержки русскийх символов.
-
-//<---------------------------------
-
-
-// Лан ------------------------->
 // MAC-адрес вашего Arduino
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x29, 0xED};
+
 // Создаем сервер на порту 80
 EthernetServer server(80);
+byte serverPort = 80;
 EthernetClient client;
-String defIP = "";
-//<---------------------------------
 
 
+//Функция инициализации сети
+void netstart(){
+  
+  Ethernet.init(5);
+  if (Ethernet.begin(mac) == 0) {
+    //Serial.println("Failed to configure Ethernet using DHCP");
+    // Некоторые дополнительные действия при ошибке
+    for(;;);
+  }
+  //My IP address:
+  opt.defIP = "";
+  for (byte thisByte = 0; thisByte < 4; thisByte++) {
+    opt.defIP+=Ethernet.localIP()[thisByte];
+    if (thisByte < 3) {
+      opt.defIP+=".";
+    }
+  }
+  // Начинаем слушать порт 80
+  server.begin();
+}
 
 int percentToValue(int percent) { //Функция перевода процентов в число для вкентилятора
   if (percent == 0){
@@ -146,69 +144,478 @@ int percentToValue(int percent) { //Функция перевода процен
   }
 }
 
-void setup()
-{
-  //Serial.begin(9600);
-  //Читае настройки из памяти
-  opt.regim = EEPROM.read(rAddr);
-   if (opt.regim == 0xFF) {
-    opt.regim = 0;
-    rwrite();
-  } 
-  EEPROM.get(rAddr+1, conf);
-  bool hasData = true;
-  for (size_t i = 0; i < sizeof(SETTINGS); i++) {
-    if (EEPROM.read(rAddr+1 + i) == 255) { 
-      hasData = false;
-      break;
-    }
-  }
-  // Если данных нет в EEPROM, используйте дефолтные значения
-  if (!hasData) {
-    conf = defaultSettings;
-    EEPROM.put(rAddr+1, conf);
-    //Serial.println("Default settings written to EEPROM");
+//Запись режима
+void rwrite(){
+  File regim = SPIFFS.open("/regim", "w");
+  regim.write(opt.regim);
+  regim.close();
+
+}
+void rload(){
+  File regim = SPIFFS.open("/regim", "r");
+  if (!regim) {
+    File regim = SPIFFS.open("/regim", "w");
+    regim.write(0);
+    regim.close();
   } else {
-    //Serial.println("Settings read from EEPROM:");
+    opt.regim = regim.read();
+    regim.close();
   }
+}
 
-  //Ethernet
-  Ethernet.begin(mac);
-  //Узнаём ip
-  defIP = "";
-  for (byte thisByte = 0; thisByte < 4; thisByte++) {
-    defIP+=Ethernet.localIP()[thisByte];
-    defIP+=".";
-  }
-  server.begin();
 
+
+// void EE(){
+//   opt.regim = EEPROM.read(rAddr);
+//    if (opt.regim == 0xFF) {
+//     opt.regim = 0;
+//     rwrite();
+//   } 
+//   EEPROM.get(rAddr+1, conf);
+//   bool hasData = true;
+//   for (size_t i = 0; i < sizeof(SETTINGS); i++) {
+//     if (EEPROM.read(rAddr+1 + i) == 255) { 
+//       hasData = false;
+//       break;
+//     }
+//   }
+  
+//   //Serial.println(String(millis()));
+//   // Если данных нет в EEPROM, используйте дефолтные значения
+//   if (!hasData) {
+//     conf = defaultSettings;
+//     //x="Settings read from EEPROM:"+String(conf.troz_sh);
+//     EEPROM.put(rAddr+1, conf);
+//     EEPROM.commit();
+
+//     //x="Default settings written to EEPROM";
+//   } else {
+//     x="Settings read from EEPROM:"+String(conf.troz_sh);
+//   }
+// }
+
+void setup() {
+  Serial.begin(115200);
+  //Сеть
+  netstart();
+  //Вентилятор
+  pinMode(vent, OUTPUT);
+
+  //Реле
   pinMode(lampa, OUTPUT);    
-  pinMode(shnek, OUTPUT);    
+  pinMode(shnek, OUTPUT);  
   digitalWrite(lampa, HIGH); // Выключаем реле
-  digitalWrite(shnek, HIGH); // Выключаем реле
+  digitalWrite(shnek, HIGH); // Выключаем реле 
+  //Читаем из памяти
+  if (!SPIFFS.begin(true)) {
+    Serial.println("An error occurred while mounting SPIFFS");
+    return;
+  }
+  
+  if (!loadSettings()) {
+    Serial.println("Failed to load settings from file, using default settings");
+    conf = defaultSettings;
+    saveSettings();
+  }
+  rload();
+  
+  //Кнопка
+  pinMode(bpin, INPUT_PULLUP); 
 
-  myOLED.begin(); 
-  pinMode(vent, OUTPUT); 
-  analogWrite(vent, percentToValue(0));
-  pinMode(4, INPUT_PULLUP); //Кнопка
-  Serial.begin(9600);
+  //Дисплей
+  display.init(); //  Инициализируем дисплей
+  display.flipScreenVertically(); // Устанавливаем зеркальное отображение экрана, к примеру, удобно, если вы хотите желтую область сделать вверху
+  display.setFontTableLookupFunction(FontUtf8Rus);
 
-  //Блок какой режим был до выключения
-  if (opt.regim==1 || opt.regim==2 || opt.regim==3){
-    byte flametemp = flameGet();
-    //Проверяем есть ли пламя
-    if (flametemp>conf.tfl) { //пламя больше пламени фиксации
-      opt.regim = 1;
-      rwrite();
-      opt.prregim =14;
+
+}
+String x = "";
+bool loadSettings() {
+  File configFile = SPIFFS.open("/conf.json", "r");
+  if (!configFile) {
+    return false;
+  }
+
+  size_t size = configFile.size();
+  if (size == 0) {
+    return false;
+  }
+
+  std::unique_ptr<char[]> buf(new char[size]);
+  configFile.readBytes(buf.get(), size);
+  x=buf.get();
+  StaticJsonDocument<256> doc;
+  DeserializationError error = deserializeJson(doc, buf.get());
+  if (error) {
+    Serial.println("Failed to parse config file");
+    return false;
+  }
+
+  conf.troz_sh = doc["troz_sh"] | defaultSettings.troz_sh;
+  conf.tnag_sh = doc["tnag_sh"] | defaultSettings.tnag_sh;
+  conf.tpod_sh = doc["tpod_sh"] | defaultSettings.tpod_sh;
+  conf.tsh_st = doc["tsh_st"] | defaultSettings.tsh_st;
+  conf.troz = doc["troz"] | defaultSettings.troz;
+  conf.fl_fix = doc["fl_fix"] | defaultSettings.fl_fix;
+  conf.tfl = doc["tfl"] | defaultSettings.tfl;
+  conf.vroz = doc["vroz"] | defaultSettings.vroz;
+  conf.v_nag = doc["v_nag"] | defaultSettings.v_nag;
+  conf.v_pod = doc["v_pod"] | defaultSettings.v_pod;
+  conf.v_og = doc["v_og"] | defaultSettings.v_og;
+  conf.temp = doc["temp"] | defaultSettings.temp;
+  conf.gister = doc["gister"] | defaultSettings.gister;
+  conf.t_vizh = doc["t_vizh"] | defaultSettings.t_vizh;
+
+  configFile.close();
+  return true;
+}
+
+void saveSettings() {
+  File configFile = SPIFFS.open("/conf.json", "w");
+  if (!configFile) {
+    Serial.println("Failed to open config file for writing");
+    return;
+  }
+
+  StaticJsonDocument<256> doc;
+  doc["troz_sh"] = conf.troz_sh;
+  doc["tnag_sh"] = conf.tnag_sh;
+  doc["tpod_sh"] = conf.tpod_sh;
+  doc["tsh_st"] = conf.tsh_st;
+  doc["troz"] = conf.troz;
+  doc["fl_fix"] = conf.fl_fix;
+  doc["tfl"] = conf.tfl;
+  doc["vroz"] = conf.vroz;
+  doc["v_nag"] = conf.v_nag;
+  doc["v_pod"] = conf.v_pod;
+  doc["v_og"] = conf.v_og;
+  doc["temp"] = conf.temp;
+  doc["gister"] = conf.gister;
+  doc["t_vizh"] = conf.t_vizh;
+
+  if (serializeJson(doc, configFile) == 0) {
+    Serial.println("Failed to write to config file");
+  }
+
+  configFile.close();
+}
+
+
+void Display(){
+  display.clear(); // Очищаем экран
+  display.setFont(ArialRus_Plain_10); // Шрифт кегль 10
+  display.setTextAlignment(TEXT_ALIGN_CENTER);
+  display.drawString(display.getWidth() / 2, 0, "Температура");
+  display.setFont(Arimo_Bold_13);
+  display.drawString(display.getWidth() / 2, 13, String(temperVal));
+  //Пламя
+  display.setFont(ArialRus_Plain_10); 
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(0, 25, "Пламя");
+  display.drawString(0, 35, String(opt.flamePersent,1)+"%");
+  //Вентилятор
+  display.setTextAlignment(TEXT_ALIGN_RIGHT);
+  display.drawString(display.getWidth(), 25, "Вент");
+  display.drawString(display.getWidth(), 35, String(vspeed)+"%");
+  //Режим
+  String regimStr;
+  switch (opt.regim) {
+    case 0:
+      regimStr = F("|Ожидание|");
+    break;
+    case 1:
+      regimStr = "|Розжик "+String(opt.rozhikCount+1)+ "|";
+    break;
+    case 2:
+      regimStr = F("|Нагрев|");
+    break;
+    case 3:
+      regimStr = F("|Поддерж|");
+    break;
+    case 4:
+      regimStr = F("|Выжигание|");
+    break;
+    case 5:
+      regimStr = F("|Ошибка|");
+    break;
     }
-    if (flametemp<conf.tfl){ //если меньше - режим розжига
-      opt.regim = 1;
-      rwrite();
-      opt.prregim =10;
+  display.setTextAlignment(TEXT_ALIGN_CENTER);
+  display.drawString(display.getWidth() / 2, 30, regimStr);
+  String status;
+  switch (opt.prregim) {
+    case 10:
+      status = F("Подкидывание");
+    break;
+    case 11:
+      status = "Подкидывание "+String(opt.countTimer);
+    break;
+    case 12:
+      status = "Лампа "+String(opt.countTimer);
+    break;
+    case 13:
+      status = F("Вижу пламя - фиксация");
+    break;
+    case 14:
+      status = F("Разгорелось!");
+    break;
+    case 21:
+      status = "Подкидывание "+String(opt.countTimer);
+    break;
+    case 22:
+      status = "Подкидывание "+String(opt.countTimer);
+    break;
+    case 31:
+      status = "Подкидывание "+String(opt.countTimer);
+    break;
+    case 32:
+      status = "Подкидывание "+String(opt.countTimer);
+    break;
+    default:
+      status = opt.defIP;
+  }
+  display.drawString(display.getWidth() / 2, 50, status);
+
+  display.display(); // Выводим на экран
+}
+
+
+
+void loop() {
+  web();
+  if (millis() - opt.TTemp >= 5000) {
+    opt.TTemp = millis();
+    temperVal = TempGetTepr();
+    //Serial.println(String(millis()) + " - "+ String(opt.TTemp) );
+    //Serial.println(String(temperVal));
+  }
+  if (millis() - opt.timer500 >= 500) {
+    //Serial.println("");
+    //Serial.println(x);
+    opt.timer500=millis();
+    flameGet();
+    rele();
+    Display();
+    Vent();
+    flamecheck();
+    control();
+  }
+
+  //блок кнопки
+  bool btnState = !digitalRead(bpin);
+  if (btnState && !bflag && millis() - opt.Tbtn > 100) { //Кнопку нажали
+    bflag = true;
+    opt.Tbtn = millis();
+  } 
+  if (!btnState && bflag && millis() - opt.Tbtn > 100) {  //Кнопку отпустили
+    bflag = false;
+    opt.Tbtn = millis();
+    pressputton();
+  }
+}
+
+
+//Функция проверки не патух ли котел
+void flamecheck(){
+  if (opt.regim && opt.regim!=1 && opt.regim!=5 && opt.regim!=4 && !opt.Tflame){
+    if (opt.flamePersent < conf.tfl) {
+          //Если пламя пропало, то возможно его забросало и оно разгориться, ждём 20 секунд
+          opt.Tflame=millis();
     }
   }
-  if (opt.regim == 4){
+  if (opt.Tflame && opt.Tflame+(10*1000L)<millis()){
+    if (opt.flamePersent < conf.tfl){
+      //не разожглось, уходим в ошибку
+      shnekStart=false;
+      opt.prregim = 19;
+      opt.regim = 5;
+      rwrite();
+      lampaStart=false;
+      opt.Tflame=0;
+    } else {
+      opt.Tflame=0;
+    }
+  }
+}
+
+
+//Основная функция управления 
+void control() {
+  //Serial.println(String(opt.prregim));
+  switch (opt.prregim) {
+      case 8:
+        if (opt.flamePersent == 0) {
+          opt.Tvizh = millis();
+          opt.prregim = 9;
+        }
+      break;
+      case 9:
+        if (opt.Tvizh+(conf.t_vizh*1000L)<millis()){
+          opt.prregim = 0;
+          opt.regim = 0;
+          rwrite();
+          shnekStart=false;
+          lampaStart=false;
+          vspeedtemp = 0;
+        }
+      break;
+      case 10:
+        opt.prregim = 11;
+        shnekStart=true;
+        opt.Tshnek = millis();
+        opt.countTimer=conf.troz_sh;
+      break;
+      case 11:
+        opt.countTimer=(opt.Tshnek+(conf.troz_sh*1000L) - millis())/1000;
+        if (opt.Tshnek+(conf.troz_sh*1000L) < millis()) {
+          shnekStart=false;
+          lampaStart=true;
+          vspeedtemp = conf.vroz;
+          opt.prregim = 12;
+          opt.Trozhik = millis();
+        }
+      break;
+      case 12:
+        Serial.println("12");
+        opt.countTimer=(opt.Trozhik+(conf.troz*1000L) - millis())/1000;
+        if (opt.Trozhik+(conf.troz*1000L) < millis()){
+          //Serial.println("fuck");
+          if (!opt.rozhikCount) {
+            opt.rozhikCount++;
+            lampaStart=false;
+            opt.prregim = 10;
+          } else {
+            opt.rozhikCount=0;
+            opt.prregim = 19;
+            opt.regim = 5;
+            rwrite();
+            lampaStart=false;
+          }
+        }
+        if (opt.flamePersent > conf.tfl) {
+          opt.Tflamefix = millis();
+          opt.prregim = 13;
+        }
+      break;
+      case 13:
+      Serial.println("13");
+        //opt.countTimer=(opt.Tflamefix+(conf.tfl*1000L) - millis())/1000;
+        if (opt.flamePersent > conf.tfl && opt.Tflamefix+(conf.fl_fix*1000L)< millis()) {
+          //Если разгорелось
+          lampaStart=false;
+          opt.prregim = 14;
+        }
+        if (opt.flamePersent < conf.tfl) {
+          //Если пламя пропало
+          opt.prregim = 12;
+        }
+      break;
+      case 14:
+        if (temperVal>conf.temp-conf.gister) {
+          //Если болше заданной температуры то поддержка
+          opt.regim = 3;
+          rwrite();
+          opt.prregim = 30;
+        } else {
+          opt.regim = 2;
+          rwrite();
+          opt.prregim = 20;
+        }
+      break;
+      case 20:
+        vspeedtemp = conf.v_nag;
+        opt.prregim = 21;
+      break; 
+      case 21: 
+        if (temperVal>conf.temp) { //Если температура богльше то режим поддержания
+          opt.regim = 3;
+          rwrite();
+          opt.prregim = 30;
+        } else {
+          shnekStart=true;
+          opt.Tshnek = millis();
+          opt.prregim = 22;
+        }
+      break;
+      case 22: 
+        opt.countTimer=(opt.Tshnek+(conf.tnag_sh*1000L) - millis())/1000;
+        if (opt.Tshnek+(conf.tnag_sh*1000L)<millis()){
+          shnekStart=false;
+          opt.waitTshnek = millis();
+          opt.prregim = 23;
+        }
+      break;
+      case 23: 
+        if (temperVal>conf.temp) { //Если температура богльше то режим поддержания
+          opt.regim = 3;
+          rwrite();
+          opt.prregim = 30;
+        }
+        if (opt.waitTshnek+(conf.tsh_st*1000L)<millis()){
+          opt.prregim = 21;
+        }
+      break;
+      case 30: 
+        vspeedtemp = conf.v_pod;
+        opt.prregim = 31;
+      break;
+      case 31: 
+        if (temperVal<conf.temp-conf.gister) { //Если темп меньше гистерезиса то нагрев
+          opt.regim = 2;
+          rwrite();
+          opt.prregim = 20;
+        } else {
+          shnekStart=true;
+          opt.Tshnek = millis();
+          opt.prregim = 32;
+        }
+      break;
+      case 32: 
+        opt.countTimer=(opt.Tshnek+(conf.tpod_sh*1000L) - millis())/1000;
+        if (opt.Tshnek+(conf.tpod_sh*1000L)<millis()){
+          shnekStart=false;
+          opt.waitTshnek = millis();
+          opt.prregim = 33;
+        }
+      break;
+      case 33: 
+        if (temperVal<conf.temp-conf.gister) { //Если темп меньше гистерезиса то нагрев
+          opt.regim = 2;
+          rwrite();
+          opt.prregim = 20;
+        }
+        if (opt.waitTshnek+(conf.tsh_st*1000L)<millis()){
+          opt.prregim = 31;
+        }
+      break;
+  }
+}
+
+//Блок вентилятора
+void Vent(){
+  if (vspeed != vspeedtemp) {
+    vspeed = vspeedtemp;
+    analogWrite(vent, 255);
+  } else {
+    analogWrite(vent, percentToValue(vspeed));
+  }
+}
+
+//Функция нажатия кнопки --------------->
+void pressputton(){
+  if (opt.regim == 0 ){
+    opt.regim = 1;
+    opt.prregim =10;
+  } else if (opt.regim == 4 || opt.regim == 5) {
+    opt.regim = 0;
+    opt.prregim = 0;
+    opt.Tflame=0;
+    shnekStart=false;
+    lampaStart=false;
+    vspeedtemp = 0;
+  }
+  else {
+    //byte tregim = opt.regim;
+    opt.regim = 4;
     opt.prregim = 8;
     opt.Tflame = 0;
     lampaStart=false;
@@ -216,7 +623,99 @@ void setup()
     vspeedtemp = 100;
   }
 
+  rwrite();
 }
+
+//блок реле
+void rele(){
+  if (shnekStart){  
+    digitalWrite(shnek, LOW); // Включаем реле
+  } else {
+    digitalWrite(shnek, HIGH); // Выключаем реле
+  }
+  if (lampaStart) {
+    digitalWrite(lampa, LOW); // Выключаем реле
+  } else {
+    digitalWrite(lampa, HIGH); // Выключаем реле
+  }
+}
+char FontUtf8Rus(const byte ch) { 
+    static uint8_t LASTCHAR;
+
+    if ((LASTCHAR == 0) && (ch < 0xC0)) {
+      return ch;
+    }
+
+    if (LASTCHAR == 0) {
+        LASTCHAR = ch;
+        return 0;
+    }
+
+    uint8_t last = LASTCHAR;
+    LASTCHAR = 0;
+    
+    switch (last) {
+        case 0xD0:
+            if (ch == 0x81) return 0xA8;
+            if (ch >= 0x90 && ch <= 0xBF) return ch + 0x30;
+            break;
+        case 0xD1:
+            if (ch == 0x91) return 0xB8;
+            if (ch >= 0x80 && ch <= 0x8F) return ch + 0x70;
+            break;
+    }
+
+    return (uint8_t) 0;
+}
+
+
+//получение огня
+void flameGet() {
+  opt.flamePersent = 100 - ((float)analogRead(analogPin)/ 4095.0) * 100;
+}
+
+// Получение температуры---------------->
+float TempReturn() {
+  byte i;
+  byte present = 0;
+  byte data[12];
+  present = ds.reset();
+  ds.select(addr);    
+  ds.write(0xBE); 
+  for ( i = 0; i < 9; i++) {           // we need 9 bytes
+    data[i] = ds.read();
+  }
+  int16_t raw = (data[1] << 8) | data[0];
+  byte cfg = (data[4] & 0x60);
+  if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
+  else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
+  else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
+  return (float)raw / 16.0;
+}
+
+float Tempwait1 (int x, uint32_t m) {
+  if (m - millis() >= x) {
+    //Serial.println("yes");
+    return TempReturn();
+  } else {
+    //Serial.println("no");
+    return Tempwait1(x,m);
+  }
+}
+
+
+float TempGetTepr() {
+  if (!ds.search(addr)) {
+    return TempGetTepr();
+  } else {
+    ds.reset();
+    ds.select(addr);
+    ds.write(0x44, 1);
+    return Tempwait1(1000, millis());
+  }
+}
+//<----------------------------------------
+
 
 //Функция веб-морды --------------->
 void web(){
@@ -241,7 +740,7 @@ void web(){
 }
 
 boolean webpressbutton(EthernetClient& ethClient, String request) {
-  if (request.indexOf(F("pressbutton")) != -1 ){
+  if (request.indexOf("perssbutton") != -1 ){
     pressputton();
   return false;
   } else {
@@ -261,7 +760,7 @@ boolean sendst(EthernetClient& ethClient, String request) {
     ethClient.print("\"shnekStart\":" + String(shnekStart) + ",");
     ethClient.print("\"lampaStart\":" + String(lampaStart) + ",");
     ethClient.print("\"vspeed\":" + String(vspeed) + ",");
-    ethClient.print("\"flamePersent\":" + String(flamePersent) + ",");
+    ethClient.print("\"flamePersent\":" + String(opt.flamePersent) + ",");
     ethClient.print("\"temperVal\":" + String(temperVal) + "}");
     return false;
   } else {
@@ -337,6 +836,7 @@ void setval(const String keyString, const byte val) {
     conf.v_pod = val;
   } else if (keyString == F("v_og")) {
     conf.v_og = val;
+    vspeedtemp=val;
   } else if (keyString == F("temp")) {
     conf.temp = val;
   } else if (keyString == F("gister")) {
@@ -357,7 +857,7 @@ boolean processSettingsUpdate(String request) {
     String paramName = request.substring(paramStart, paramNameEnd);
     String paramValue = request.substring(paramNameEnd + 1, paramValueEnd);
     setval(paramName.c_str(), paramValue.toInt());
-    EEPROM.put(rAddr+1, conf);
+    saveSettings();
     return false;
   } else {
     return true;
@@ -373,415 +873,5 @@ void sendSettingsPage(EthernetClient& ethClient) {
   ethClient.println();
 
   // Отправляем HTML-страницу с формой для изменения значений
-  ethClient.print(F("<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style></head><body><iframe id='i'></iframe><script>(async function l(url,id){document.getElementById('i').srcdoc=await(await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html')).text()})()</script></body></html>"));
+  ethClient.print(F("<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style></head><body><iframe id='i'></iframe><script>(async function l(url,id){document.getElementById('i').srcdoc=await(await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html?'+(new Date).getTime())).text()})()</script></body></html>"));
 }
-
-
-//Функция нажатия кнопки --------------->
-void pressputton(){
-  if (opt.regim == 0 ){
-    opt.regim = 1;
-    opt.prregim =10;
-  } else if (opt.regim == 4 || opt.regim == 5) {
-    opt.regim = 0;
-    opt.prregim = 0;
-    opt.Tflame=0;
-    shnekStart=false;
-    lampaStart=false;
-    vspeedtemp = 0;
-  }
-  else {
-    //byte tregim = opt.regim;
-    opt.regim = 4;
-    opt.prregim = 8;
-    opt.Tflame = 0;
-    lampaStart=false;
-    shnekStart=false;
-    vspeedtemp = 100;
-  }
-
-  rwrite();
-}
-
-
-//<----------------------------------------
-/*
-8  - выжигание
-10 - начало розжига, подача
-11 - окончание подачи, лампа
-12 - Ждём фиксации пламяни. Если ошибка розжига- заглушка на 19
-13 - Увидели пламя, фексируем
-14 - разгорелось, проверяем температуру
-20 - Установка вентилятора - нагрев
-21 - старт нагрева
-22 - подкидывание
-23 - ожидание перед подкидыванием
-30 - Установка вентилятора - поддержание
-31 - старт поддержания
-32 - подкидывание
-33 - ожидание перед подкидыванием
-*/
-void control() {
-  switch (opt.prregim) {
-      case 8:
-        if (flamePersent == 0) {
-          opt.Tvizh = millis();
-          opt.prregim = 9;
-        }
-      break;
-      case 9:
-        if (opt.Tvizh+(conf.t_vizh*1000L)<millis()){
-          opt.prregim = 0;
-          opt.regim = 0;
-          rwrite();
-          shnekStart=false;
-          lampaStart=false;
-          vspeedtemp = 0;
-        }
-      break;
-      case 10:
-        opt.prregim = 11;
-        shnekStart=true;
-        opt.Tshnek = millis();
-        countTimer=conf.troz_sh;
-      break;
-      case 11:
-        countTimer=(opt.Tshnek+(conf.troz_sh*1000L) - millis())/1000;
-        if (opt.Tshnek+(conf.troz_sh*1000L) < millis()) {
-          shnekStart=false;
-          lampaStart=true;
-          vspeedtemp = conf.vroz;
-          opt.prregim = 12;
-          opt.Trozhik = millis();
-        }
-      break;
-      case 12:
-        if (opt.Trozhik+(conf.troz*1000L) < millis()){
-          //Serial.println("fuck");
-          if (!opt.rozhikCount) {
-            opt.rozhikCount++;
-            lampaStart=false;
-            opt.prregim = 10;
-          } else {
-            opt.rozhikCount=0;
-            opt.prregim = 19;
-            opt.regim = 5;
-            rwrite();
-            lampaStart=false;
-          }
-        }
-        if (flamePersent > conf.tfl) {
-          opt.Tflamefix = millis();
-          opt.prregim = 13;
-        }
-      break;
-      case 13:
-        if (flamePersent > conf.tfl && opt.Tflamefix+(conf.fl_fix*1000L)< millis()) {
-          //Если разгорелось
-          lampaStart=false;
-          opt.prregim = 14;
-        }
-        if (flamePersent < conf.tfl) {
-          //Если пламя пропало
-          opt.prregim = 12;
-        }
-      break;
-      case 14:
-        if (temperVal>conf.temp-conf.gister) {
-          //Если болше заданной температуры то поддержка
-          opt.regim = 3;
-          rwrite();
-          opt.prregim = 30;
-        } else {
-          opt.regim = 2;
-          rwrite();
-          opt.prregim = 20;
-        }
-      break;
-      case 20:
-        vspeedtemp = conf.v_nag;
-        opt.prregim = 21;
-      break; 
-      case 21: 
-        if (temperVal>conf.temp) { //Если температура богльше то режим поддержания
-          opt.regim = 3;
-          rwrite();
-          opt.prregim = 30;
-        } else {
-          shnekStart=true;
-          opt.Tshnek = millis();
-          opt.prregim = 22;
-        }
-      break;
-      case 22: 
-        if (opt.Tshnek+(conf.tnag_sh*1000L)<millis()){
-          shnekStart=false;
-          opt.waitTshnek = millis();
-          opt.prregim = 23;
-        }
-      break;
-      case 23: 
-        if (temperVal>conf.temp) { //Если температура богльше то режим поддержания
-          opt.regim = 3;
-          rwrite();
-          opt.prregim = 30;
-        }
-        if (opt.waitTshnek+(conf.tsh_st*1000L)<millis()){
-          opt.prregim = 21;
-        }
-      break;
-      case 30: 
-        vspeedtemp = conf.v_pod;
-        opt.prregim = 31;
-      break;
-      case 31: 
-        if (temperVal<conf.temp-conf.gister) { //Если темп меньше гистерезиса то нагрев
-          opt.regim = 2;
-          rwrite();
-          opt.prregim = 20;
-        } else {
-          shnekStart=true;
-          opt.Tshnek = millis();
-          opt.prregim = 32;
-        }
-      break;
-      case 32: 
-        if (opt.Tshnek+(conf.tpod_sh*1000L)<millis()){
-          shnekStart=false;
-          opt.waitTshnek = millis();
-          opt.prregim = 33;
-        }
-      break;
-      case 33: 
-        if (temperVal<conf.temp-conf.gister) { //Если темп меньше гистерезиса то нагрев
-          opt.regim = 2;
-          rwrite();
-          opt.prregim = 20;
-        }
-        if (opt.waitTshnek+(conf.tsh_st*1000L)<millis()){
-          opt.prregim = 31;
-        }
-      break;
-  }
-}
-
-//Запись режима
-void rwrite(){
-  EEPROM.write(rAddr, opt.regim);
-}
-
-//Функция проверки не патух ли котел
-void flamecheck(){
-  if (opt.regim && opt.regim!=1 && opt.regim!=5 && opt.regim!=4 && !opt.Tflame){
-    if (flamePersent < conf.tfl) {
-          //Если пламя пропало, то возможно его забросало и оно разгориться, ждём 20 секунд
-          opt.Tflame=millis();
-    }
-  }
-  if (opt.Tflame && opt.Tflame+(10*1000L)<millis()){
-    if (flamePersent < conf.tfl){
-      //не разожглось, уходим в ошибку
-      shnekStart=false;
-      opt.prregim = 19;
-      opt.regim = 5;
-      rwrite();
-      lampaStart=false;
-      opt.Tflame=0;
-    } else {
-      opt.Tflame=0;
-    }
-  }
-}
-
-
-void loop(){
-  
-  if (millis() - opt.timer500 >= 500) {
-    opt.timer500 = millis();
-    
-    //control();
-    //flamecheck();
-
-    //блок реле
-    if (shnekStart){  
-      digitalWrite(shnek, LOW); // Включаем реле
-    } else {
-      digitalWrite(shnek, HIGH); // Выключаем реле
-    }
-    if (lampaStart) {
-      digitalWrite(lampa, LOW); // Выключаем реле
-    } else {
-      digitalWrite(lampa, HIGH); // Выключаем реле
-    }
-
-    //Блок вентилятора
-    if (vspeed != vspeedtemp) {
-      vspeed = vspeedtemp;
-      analogWrite(vent, 255);
-    } else {
-      analogWrite(vent, percentToValue(vspeed));
-    }
-
-
-    //Блок дисплея
-    myOLED.clrScr(); // очищаем экран
-    myOLED.setFont(RusFont); // Устанавливаем русский шрифт
-    myOLED.print(F("Ntvgthfnehf"), CENTER, 0); // Выводим надпись "Температура"
-    myOLED.setFont(MediumNumbers);
-    myOLED.print(String(temperVal), CENTER, 9);   // Отображение температуры
-    
-    myOLED.setFont(RusFont); 
-    myOLED.print(F("Gkfvz"), LEFT, 33); // Выводим надпись "Пламя"
-    myOLED.setFont(SmallFont);
-    myOLED.print(String(flamePersent,1)+"%", LEFT, 43); // вывод текста
-
-    myOLED.setFont(RusFont);
-    myOLED.print(F("Dtyn"), RIGHT, 33); // Выводим надпись "Вент"
-    myOLED.setFont(SmallFont);
-    myOLED.print(String(vspeed)+"%", RIGHT, 43); // вывод текста
-
-    myOLED.setFont(RusFont); 
-    String regimStr;
-    switch (opt.regim) {
-      case 0:
-        regimStr = F("|J;blfybt|");
-      break;
-      case 1:
-        regimStr = "|Hjp;br "+String(opt.rozhikCount+1)+ "|";
-      break;
-      case 2:
-        regimStr = F("|Yfuhtd|");
-      break;
-      case 3:
-        regimStr = F("|Gjllth;|");
-      break;
-      case 4:
-        regimStr = F("|Ds;bufybt|");
-      break;
-      case 5:
-        regimStr = F("|Ji hjp;buf|");
-      break;
-    
-    }
-    myOLED.print(regimStr, CENTER, 37); // Выводим надпись "Ожидание"
-   
-    String status;
-    myOLED.setFont(RusFont); 
-    switch (opt.prregim) {
-      case 10:
-        status = F("Gjlrblsdfybt");
-      break;
-      case 11:
-        status = "Gjlrblsdfybt "+String(countTimer);
-      break;
-      case 12:
-        status = F("Kfvgf");
-      break;
-      case 13:
-        status = F("Db;e gkfvz - abrcfwbz");
-      break;
-      case 14:
-        status = F("Hfpujhtkjcm!");
-      break;
-      case 21:
-        status = "Gjlrblsdfybt "+String(conf.tnag_sh)+'c';
-      break;
-      case 22:
-        status = "Gjlrblsdfybt "+String(conf.tnag_sh)+'c';
-      break;
-      case 31:
-        status = "Gjlrblsdfybt "+String(conf.tpod_sh)+'c';
-      break;
-      case 32:
-        status = "Gjlrblsdfybt "+String(conf.tpod_sh)+'c';
-      break;
-      default:
-        myOLED.setFont(SmallFont);
-        status = defIP;
-    }
-    myOLED.print(status, CENTER, 57); // Выводим надпись "Айпишник"
-    myOLED.update();
-    
-  }
-
-
-  //блок кнопки
-  bool btnState = !digitalRead(4);
-  if (btnState && !bflag && millis() - opt.Tbtn > 100) { //Кнопку нажали
-    bflag = true;
-    opt.Tbtn = millis();
-  } 
-  if (!btnState && bflag && millis() - opt.Tbtn > 100) {  //Кнопку отпустили
-    bflag = false;
-    opt.Tbtn = millis();
-    pressputton();
-  }
-
-  
-
-  //Блок пламени
-  if (millis() - opt.Tflame >= 1000) {
-    opt.Tflame = millis();
-    int flame = analogRead(analogPin);
-    flamePersent  = flameGet();
-  }
-  //Блок температуры
-  if (millis() - opt.TTemp >= 5000) {
-    opt.TTemp = millis();
-    temperVal = TempGetTepr();
-  }
-  
-} //End loop
-
-byte flameGet() {
-  int flame = analogRead(analogPin);
-    if (flame<= 1000) {
-      return 100 - ((float)flame / 1000.0) * 100;
-    } else {
-      return 0;
-    }
-}
-
-
-// Получение температуры---------------->
-
-float TempReturn() {
-  byte i;
-  byte present = 0;
-  byte data[12];
-  present = ds.reset();
-  ds.select(addr);    
-  ds.write(0xBE); 
-  for ( i = 0; i < 9; i++) {           // we need 9 bytes
-    data[i] = ds.read();
-  }
-  int16_t raw = (data[1] << 8) | data[0];
-  byte cfg = (data[4] & 0x60);
-  if (cfg == 0x00) raw = raw & ~7;  // 9 bit resolution, 93.75 ms
-  else if (cfg == 0x20) raw = raw & ~3; // 10 bit res, 187.5 ms
-  else if (cfg == 0x40) raw = raw & ~1; // 11 bit res, 375 ms
-  return (float)raw / 16.0;
-}
-
-float Tempwait1 (int x, uint32_t m) {
-  if (m - millis() >= x) {
-    //Serial.println("yes");
-    return TempReturn();
-  } else {
-    //Serial.println("no");
-    return Tempwait1(x,m);
-  }
-}
-
-
-float TempGetTepr() {
-  if (!ds.search(addr)) {
-    return TempGetTepr();
-  } else {
-    ds.reset();
-    ds.select(addr);
-    ds.write(0x44, 1);
-    return Tempwait1(1000, millis());
-  }
-}
-//<----------------------------------------
