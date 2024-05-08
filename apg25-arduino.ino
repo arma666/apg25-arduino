@@ -197,15 +197,15 @@ void rload(){
 void setup() {
   Serial.begin(115200);
   //Сеть
-  //netstart();
+  netstart();
   //Вентилятор
   pinMode(vent, OUTPUT);
 
   //Реле
   pinMode(lampa, OUTPUT);    
   pinMode(shnek, OUTPUT);  
-  digitalWrite(lampa, HIGH); // Выключаем реле
-  digitalWrite(shnek, HIGH); // Выключаем реле 
+  digitalWrite(lampa, LOW); // Выключаем реле
+  digitalWrite(shnek, LOW); // Выключаем реле 
   //Читаем из памяти
   if (!SPIFFS.begin(true)) {
     Serial.println("An error occurred while mounting SPIFFS");
@@ -629,14 +629,14 @@ void pressputton(){
 //блок реле
 void rele(){
   if (shnekStart){  
-    digitalWrite(shnek, LOW); // Включаем реле
+    digitalWrite(shnek, HIGH); // Включаем реле
   } else {
-    digitalWrite(shnek, HIGH); // Выключаем реле
+    digitalWrite(shnek, LOW); // Выключаем реле
   }
   if (lampaStart) {
-    digitalWrite(lampa, LOW); // Выключаем реле
-  } else {
     digitalWrite(lampa, HIGH); // Выключаем реле
+  } else {
+    digitalWrite(lampa, LOW); // Выключаем реле
   }
 }
 char FontUtf8Rus(const byte ch) { 
