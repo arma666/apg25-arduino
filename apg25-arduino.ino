@@ -33,6 +33,7 @@ struct OPT {
   String defIP = "192.168.88.10";
   byte countTimer;
   byte rozhikCount = 0;
+  boolean isnet = false; 
   /*
 Режимы - -
   0 - Ожидание
@@ -122,18 +123,20 @@ void netstart(){
   if (Ethernet.begin(mac) == 0) {
     //Serial.println("Failed to configure Ethernet using DHCP");
     // Некоторые дополнительные действия при ошибке
-    for(;;);
-  }
-  //My IP address:
-  opt.defIP = "";
-  for (byte thisByte = 0; thisByte < 4; thisByte++) {
-    opt.defIP+=Ethernet.localIP()[thisByte];
-    if (thisByte < 3) {
-      opt.defIP+=".";
+    opt.defIP="No ip :("
+    //for(;;);
+  } else {
+    //My IP address:
+    opt.defIP = "";
+    for (byte thisByte = 0; thisByte < 4; thisByte++) {
+      opt.defIP+=Ethernet.localIP()[thisByte];
+      if (thisByte < 3) {
+        opt.defIP+=".";
+      }
     }
+    // Начинаем слушать порт 80
+    server.begin();
   }
-  // Начинаем слушать порт 80
-  server.begin();
 }
 
 int percentToValue(int percent) { //Функция перевода процентов в число для вкентилятора
@@ -381,7 +384,16 @@ void Display(){
 
 
 void loop() {
-  web();
+  if (OPT.isnet)
+  {
+    web();
+  } else 
+  {
+    netstart();
+  }
+  
+  
+  
   if (millis() - opt.TTemp >= 5000) {
     opt.TTemp = millis();
     temperVal = TempGetTepr();
