@@ -23,14 +23,19 @@ ESP32 имеет встроенныймодуль wifi, но я не испол�
 | Датчик температуры DS18B20 + Модуль для подключения | 300 | [link](https://www.ozon.ru/product/datchik-temperatury-ds18b20-modul-dlya-podklyucheniya-832438319/) |
 | Блок питания 12В 2А | У меня был |   |
 | Кнопка | Тоже была | [link](https://www.ozon.ru/product/taktovaya-knopka-dip-6mm-h-6mm-h-5mm-kan0611-0431b-komplekt-10sht-1298579180/?asb=FrKIU8vldZLXNb3YUGktmree2B6OnrtZFifcX5JdYMo%253D&asb2=RV0PnuV4dz6rov_p2IldNqN6CenkD2PfN_WyzEUUpLi4DdRtN5qWcosX4vlPzXEvz7RMKIquM4ONTrmxuFaCaQ&avtc=1&avte=2&avts=1725126256&keywords=arduino+%D0%BA%D0%BD%D0%BE%D0%BF%D0%BA%D0%B0) |
-| 
+|   |   |   |
+
 ##### Итого
 
- | 
+|
 
 ##### 3908
 
- |   |
+|   |
 
 *   \* Цены имеют свойство рости, актуально на август 2024.
 *   \*\* За актуальностью ссылок следить не буду
+
+#### _Схема_
+
+![](img/ESP32Apg25.png)
