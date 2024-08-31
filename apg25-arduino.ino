@@ -123,7 +123,7 @@ void netstart(){
   if (Ethernet.begin(mac) == 0) {
     //Serial.println("Failed to configure Ethernet using DHCP");
     // Некоторые дополнительные действия при ошибке
-    opt.defIP="No ip :("
+    opt.defIP="No ip :(";
     //for(;;);
   } else {
     //My IP address:
@@ -384,7 +384,7 @@ void Display(){
 
 
 void loop() {
-  if (OPT.isnet)
+  if (opt.isnet)
   {
     web();
   } else 
