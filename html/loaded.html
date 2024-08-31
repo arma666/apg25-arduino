@@ -59,12 +59,32 @@
           <div class="col-md-4">
             <div class="card mb-4 shadow-sm">
               <div class="card-body">
-                <h5 class="card-title">Заголовок карточки 5</h5>
-                <p v-if="!regim" class="card-text"><button @click="pressbutton" class="btn btn-primary">Старт</button></p>
-                <p v-if="regim" class="card-text"><button @click="pressbutton" class="btn btn-danger">Стоп</button></p>
+                <div class="row">
+                  <!-- Левая половина -->
+                  <div class="col-md-5">
+                    <h5 class="card-title">Действия</h5>
+                    <p v-if="!regim" class="card-text">
+                      <button @click="pressbutton" class="btn btn-primary">Старт</button>
+                    </p>
+                    <p v-if="regim" class="card-text">
+                      <button @click="pressbutton" class="btn btn-danger">Стоп</button>
+                    </p>
+                  </div>
+                  <!-- Правая половина -->
+                  <div class="col-md-7">
+                    <h5 class="card-title">Температура</h5>
+                    <p class="card-text justify-content-between align-items-center">
+                        <button @click="tempchange(-1)" class="btn btn-secondary">-</button>
+                        <button style="margin-right: 15px;" @click="tempchange(1)" class="btn btn-secondary ml-2">+</button>
+                        <span class="ml-auto">{{ settings.temp.val }}&deg;</span>
+                    </p>
+                  </div>
+                  
+                </div>
               </div>
             </div>
           </div>
+          
           <div class="col-md-4">
             <div class="card mb-4 shadow-sm">
               <div class="card-body">
@@ -200,6 +220,10 @@
                 }, 1000);
             },
             methods: {
+                tempchange(i) {
+                    this.settings.temp.val=this.settings.temp.val+i;
+                    this.updateSetting("temp");
+                },
                 loadData() {
                     axios.get('/getstate')
                         .then(response => {
