@@ -134,6 +134,7 @@ void netstart(){
         opt.defIP+=".";
       }
     }
+    opt.isnet=true;
     // Начинаем слушать порт 80
     server.begin();
   }
