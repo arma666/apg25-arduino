@@ -212,7 +212,7 @@
             },
             mounted() {
                 this.loadData();
-                loadSetiings();
+                this.loadSetiings();
                 // Обновлять данные каждую секунду только если showSettings = false
                 this.intervalId = setInterval(() => {
                     if (!this.showSettings) {
