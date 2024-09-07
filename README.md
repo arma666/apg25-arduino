@@ -24,7 +24,7 @@ ESP32 имеет встроенныймодуль wifi, но я не испол�
 | OLED дисплей 0.96" 128x64, I2C | 330 | [link](https://www.ozon.ru/product/oled-displey-0-96-128x64-i2c-goluboy-832377824/) |
 | Модуль регулятора напряжения N-MOS | 470 | [link](https://www.ozon.ru/product/regulyator-skorosti-dvigatelya-xy-mos-regulyator-napryazheniya-n-mos-pereklyuchatel-1228912589/) |
 | Сетевой модуль W5500 | 420 | [link](https://market.yandex.ru/product--setevoi-modul-w5500-tcp-ip-stm32-ethernet-dlia-arduino-n/1824023690?sku=101968565885&uniqueId=932565&do-waremd5=l6RW3MQS-Dln0jpte7dQYg&nid=61856) |
-| Модуль реле твердотельное 12 вольт 2 канала высокоуровневое. | 680 | [link](https://www.ozon.ru/product/passivnyy-komponent-modul-rele-tverdotelnoe-12-volt-2-kanala-vysokourovnevoe-1208143026/) |
+| Модуль реле твердотельное 12 вольт 2 канала высокоуровневое. | 330 | [link](https://www.ozon.ru/product/2-kanalnyy-12v-vysokourovnevoe-upravlenie-postoyannym-tokom-tverdotelnyy-releynyy-1269808418/?asb=jfKKWBOPga39T1%252BnU778n8fPJhGylEFF79nT4Hy2vvo%253D&asb2=9m36PaoZSx6NZqCvn08IWXfeeGZyMap-SNcyaLtdKU_Byuym_SM1OqxrUQc0LSsKMH3ge37WfRrRfPAUHHlrkA&avtc=1&avte=2&avts=1725709586&keywords=%D0%9C%D0%BE%D0%B4%D1%83%D0%BB%D1%8C+%D1%80%D0%B5%D0%BB%D0%B5+%D1%82%D0%B2%D0%B5%D1%80%D0%B4%D0%BE%D1%82%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE%D0%B5+12+%D0%B2%D0%BE%D0%BB%D1%8C%D1%82+2+%D0%BA%D0%B0%D0%BD%D0%B0%D0%BB%D0%B0+%D0%B2%D1%8B%D1%81%D0%BE%D0%BA%D0%BE%D1%83%D1%80%D0%BE%D0%B2%D0%BD%D0%B5%D0%B2%D0%BE%D0%B5. |
 | Печатная макетная плата для пайки двухсторонняя 9\*15см / зеленая плата под пайку универсальная | 240 | [link](https://www.ozon.ru/product/pechatnaya-maketnaya-plata-dlya-payki-dvuhstoronnyaya-9-15sm-zelenaya-plata-pod-payku-universalnaya-1067054329/) |
 | Штыревые однорядные разъемы на плату МАМА (PBS-40) 40 pin 2.54 мм, 10 штук | 370 | [link](https://www.ozon.ru/product/shtyrevye-odnoryadnye-razemy-na-platu-mama-pbs-40-40-pin-2-54-mm-10-shtuk-pld-razem-dlya-proektov-1051231516/) |
 | Клеммная колодка KF235 с пружинным зажимом для пайки на плату 10 контактов | 400 | [link](https://www.ozon.ru/product/klemmnaya-kolodka-kf235-s-pruzhinnym-zazhimom-dlya-payki-na-platu-10-kontaktov-764072916/) |
@@ -32,7 +32,7 @@ ESP32 имеет встроенныймодуль wifi, но я не испол�
 | Датчик температуры DS18B20 + Модуль для подключения | 300 | [link](https://www.ozon.ru/product/datchik-temperatury-ds18b20-modul-dlya-podklyucheniya-832438319/) |
 | Блок питания 12В 2А | У меня был |   |
 | Кнопка | Тоже была | [link](https://www.ozon.ru/product/taktovaya-knopka-dip-6mm-h-6mm-h-5mm-kan0611-0431b-komplekt-10sht-1298579180/?asb=FrKIU8vldZLXNb3YUGktmree2B6OnrtZFifcX5JdYMo%253D&asb2=RV0PnuV4dz6rov_p2IldNqN6CenkD2PfN_WyzEUUpLi4DdRtN5qWcosX4vlPzXEvz7RMKIquM4ONTrmxuFaCaQ&avtc=1&avte=2&avts=1725126256&keywords=arduino+%D0%BA%D0%BD%D0%BE%D0%BF%D0%BA%D0%B0) |
-| **Итого** | 3908 |   |
+| **Итого** | 3558 |   |
 
 *   \* Цены имеют свойство рости, актуально на август 2024.
 *   \*\* За актуальностью ссылок следить не буду

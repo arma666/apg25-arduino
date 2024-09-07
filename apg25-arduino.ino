@@ -118,8 +118,9 @@ EthernetClient client;
 
 //Функция инициализации сети
 void netstart(){
-  
+  Serial.println("y");
   Ethernet.init(5);
+  Serial.println("x");
   if (Ethernet.begin(mac) == 0) {
     //Serial.println("Failed to configure Ethernet using DHCP");
     // Некоторые дополнительные действия при ошибке
