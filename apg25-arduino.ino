@@ -207,10 +207,10 @@ void setup() {
   pinMode(vent, OUTPUT);
 
   //Реле
-  pinMode(lampa, OUTPUT);    
+  pinMode(lampa, INPUT);    
   pinMode(shnek, OUTPUT);  
   digitalWrite(lampa, LOW); // Выключаем реле
-  digitalWrite(shnek, LOW); // Выключаем реле 
+  //digitalWrite(shnek, LOW); // Выключаем реле 
   //Читаем из памяти
   if (!SPIFFS.begin(true)) {
     Serial.println("An error occurred while mounting SPIFFS");
