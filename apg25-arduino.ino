@@ -1,3 +1,5 @@
+String VERSION="v0.11a"
+
 #include <SSD1306Wire.h>
 #include "fontsRus.h"
 #include "fonts.h"
@@ -31,7 +33,7 @@ struct OPT {
   float flamePersent = 0;
   byte vspeed = 0;
   String defIP = "192.168.88.10";
-  byte countTimer;
+  unsigned long countTimer;
   byte rozhikCount = 0;
   boolean isnet = false; 
   /*
@@ -53,7 +55,7 @@ struct SETTINGS {
   byte tnag_sh; //Время подкидывания при нагреве
   byte tpod_sh; //Время подкидывания при подержании
   byte tsh_st; //Промежуток между подкидываниями
-  byte troz; //Время отведённое на розжик
+  unsigned long troz; //Время отведённое на розжик
   byte fl_fix; //Время виксации пламяни
   byte tfl; //На каком проценте начинается фиксация
   byte vroz; //скорость вентилятора при розжиге
@@ -170,35 +172,6 @@ void rload(){
 
 
 
-// void EE(){
-//   opt.regim = EEPROM.read(rAddr);
-//    if (opt.regim == 0xFF) {
-//     opt.regim = 0;
-//     rwrite();
-//   } 
-//   EEPROM.get(rAddr+1, conf);
-//   bool hasData = true;
-//   for (size_t i = 0; i < sizeof(SETTINGS); i++) {
-//     if (EEPROM.read(rAddr+1 + i) == 255) { 
-//       hasData = false;
-//       break;
-//     }
-//   }
-  
-//   //Serial.println(String(millis()));
-//   // Если данных нет в EEPROM, используйте дефолтные значения
-//   if (!hasData) {
-//     conf = defaultSettings;
-//     //x="Settings read from EEPROM:"+String(conf.troz_sh);
-//     EEPROM.put(rAddr+1, conf);
-//     EEPROM.commit();
-
-//     //x="Default settings written to EEPROM";
-//   } else {
-//     x="Settings read from EEPROM:"+String(conf.troz_sh);
-//   }
-// }
-
 void setup() {
   Serial.begin(115200);
   //Сеть
@@ -207,10 +180,10 @@ void setup() {
   pinMode(vent, OUTPUT);
 
   //Реле
-  pinMode(lampa, INPUT);    
+  pinMode(lampa, OUTPUT);    
   pinMode(shnek, OUTPUT);  
   digitalWrite(lampa, LOW); // Выключаем реле
-  //digitalWrite(shnek, LOW); // Выключаем реле 
+  digitalWrite(shnek, LOW); // Выключаем реле 
   //Читаем из памяти
   if (!SPIFFS.begin(true)) {
     Serial.println("An error occurred while mounting SPIFFS");
@@ -236,7 +209,7 @@ void setup() {
 }
 String x = "";
 bool loadSettings() {
-  File configFile = SPIFFS.open("/conf.json", "r");
+  File configFile = SPIFFS.open("/conf1.json", "r");
   if (!configFile) {
     return false;
   }
@@ -249,7 +222,7 @@ bool loadSettings() {
   std::unique_ptr<char[]> buf(new char[size]);
   configFile.readBytes(buf.get(), size);
   x=buf.get();
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<1024> doc;
   DeserializationError error = deserializeJson(doc, buf.get());
   if (error) {
     Serial.println("Failed to parse config file");
@@ -276,13 +249,13 @@ bool loadSettings() {
 }
 
 void saveSettings() {
-  File configFile = SPIFFS.open("/conf.json", "w");
+  File configFile = SPIFFS.open("/conf1.json", "w");
   if (!configFile) {
     Serial.println("Failed to open config file for writing");
     return;
   }
 
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<1024> doc;
   doc["troz_sh"] = conf.troz_sh;
   doc["tnag_sh"] = conf.tnag_sh;
   doc["tpod_sh"] = conf.tpod_sh;
@@ -313,6 +286,10 @@ void Display(){
   display.drawString(display.getWidth() / 2, 0, "Температура");
   display.setFont(Arimo_Bold_13);
   display.drawString(display.getWidth() / 2, 13, String(temperVal));
+  //Версия
+  display.setFont(ArialRus_Plain_10); 
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(0, 10, VERSION);
   //Пламя
   display.setFont(ArialRus_Plain_10); 
   display.setTextAlignment(TEXT_ALIGN_LEFT);
@@ -436,7 +413,7 @@ void flamecheck(){
           opt.Tflame=millis();
     }
   }
-  if (opt.Tflame && opt.Tflame+(10*1000L)<millis()){
+  if (opt.Tflame && opt.Tflame+(45*1000L)<millis()){
     if (opt.flamePersent < conf.tfl){
       //не разожглось, уходим в ошибку
       shnekStart=false;
@@ -826,7 +803,7 @@ boolean sendparams(EthernetClient& ethClient, String request) {
 }
 
 //Устанавливаем настройку и записываем в память
-void setval(const String keyString, const byte val) {
+void setval(const String keyString, const unsigned long val) {
 
   if (keyString == F("troz_sh")) {
     conf.troz_sh = val;
