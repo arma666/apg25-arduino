@@ -1,4 +1,4 @@
-String VERSION="v0.11a"
+String VERSION="v0.11a";
 
 #include <SSD1306Wire.h>
 #include "fontsRus.h"
