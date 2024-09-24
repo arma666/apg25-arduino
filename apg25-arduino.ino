@@ -120,11 +120,11 @@ EthernetClient client;
 
 //Функция инициализации сети
 void netstart(){
-  Serial.println("y");
+  //Serial.println("y");
   Ethernet.init(5);
-  Serial.println("x");
+  //Serial.println("x");
   if (Ethernet.begin(mac) == 0) {
-    //Serial.println("Failed to configure Ethernet using DHCP");
+    ////Serial.println("Failed to configure Ethernet using DHCP");
     // Некоторые дополнительные действия при ошибке
     opt.defIP="No ip :(";
     //for(;;);
@@ -173,7 +173,7 @@ void rload(){
 
 
 void setup() {
-  Serial.begin(115200);
+  //Serial.begin(115200);
   //Сеть
   netstart();
   //Вентилятор
@@ -186,12 +186,12 @@ void setup() {
   digitalWrite(shnek, LOW); // Выключаем реле 
   //Читаем из памяти
   if (!SPIFFS.begin(true)) {
-    Serial.println("An error occurred while mounting SPIFFS");
+    //Serial.println("An error occurred while mounting SPIFFS");
     return;
   }
   
   if (!loadSettings()) {
-    Serial.println("Failed to load settings from file, using default settings");
+    //Serial.println("Failed to load settings from file, using default settings");
     conf = defaultSettings;
     saveSettings();
   }
@@ -223,9 +223,9 @@ bool loadSettings() {
   configFile.readBytes(buf.get(), size);
   x=buf.get();
   StaticJsonDocument<1024> doc;
-  DeserializationError error = deserializeJson(doc, buf.get());
+  De//SerializationError error = de//SerializeJson(doc, buf.get());
   if (error) {
-    Serial.println("Failed to parse config file");
+    //Serial.println("Failed to parse config file");
     return false;
   }
 
@@ -251,7 +251,7 @@ bool loadSettings() {
 void saveSettings() {
   File configFile = SPIFFS.open("/conf1.json", "w");
   if (!configFile) {
-    Serial.println("Failed to open config file for writing");
+    //Serial.println("Failed to open config file for writing");
     return;
   }
 
@@ -271,8 +271,8 @@ void saveSettings() {
   doc["gister"] = conf.gister;
   doc["t_vizh"] = conf.t_vizh;
 
-  if (serializeJson(doc, configFile) == 0) {
-    Serial.println("Failed to write to config file");
+  if (//SerializeJson(doc, configFile) == 0) {
+    //Serial.println("Failed to write to config file");
   }
 
   configFile.close();
@@ -376,12 +376,12 @@ void loop() {
   if (millis() - opt.TTemp >= 5000) {
     opt.TTemp = millis();
     temperVal = TempGetTepr();
-    //Serial.println(String(millis()) + " - "+ String(opt.TTemp) );
-    //Serial.println(String(temperVal));
+    ////Serial.println(String(millis()) + " - "+ String(opt.TTemp) );
+    ////Serial.println(String(temperVal));
   }
   if (millis() - opt.timer500 >= 500) {
-    //Serial.println("");
-    //Serial.println(x);
+    ////Serial.println("");
+    ////Serial.println(x);
     opt.timer500=millis();
     flameGet();
     rele();
@@ -431,7 +431,7 @@ void flamecheck(){
 
 //Основная функция управления 
 void control() {
-  //Serial.println(String(opt.prregim));
+  ////Serial.println(String(opt.prregim));
   switch (opt.prregim) {
       case 8:
         if (opt.flamePersent == 0) {
@@ -466,10 +466,10 @@ void control() {
         }
       break;
       case 12:
-        Serial.println("12");
+        //Serial.println("12");
         opt.countTimer=(opt.Trozhik+(conf.troz*1000L) - millis())/1000;
         if (opt.Trozhik+(conf.troz*1000L) < millis()){
-          //Serial.println("fuck");
+          ////Serial.println("fuck");
           if (!opt.rozhikCount) {
             opt.rozhikCount++;
             lampaStart=false;
@@ -488,7 +488,7 @@ void control() {
         }
       break;
       case 13:
-      Serial.println("13");
+      //Serial.println("13");
         //opt.countTimer=(opt.Tflamefix+(conf.tfl*1000L) - millis())/1000;
         if (opt.flamePersent > conf.tfl && opt.Tflamefix+(conf.fl_fix*1000L)< millis()) {
           //Если разгорелось
@@ -686,10 +686,10 @@ float TempReturn() {
 
 float Tempwait1 (int x, uint32_t m) {
   if (m - millis() >= x) {
-    //Serial.println("yes");
+    ////Serial.println("yes");
     return TempReturn();
   } else {
-    //Serial.println("no");
+    ////Serial.println("no");
     return Tempwait1(x,m);
   }
 }
