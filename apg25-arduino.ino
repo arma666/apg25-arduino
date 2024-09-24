@@ -8,6 +8,8 @@ String VERSION="v0.11a";
 #include <SPIFFS.h>
 #include <SPI.h>
 #include <Ethernet2.h>
+#include "esp_task_wdt.h"
+
 byte rAddr= 0;
 SSD1306Wire display(0x3c, SDA, SCL); // SDA - IO5 (D1), SCL - IO4 (D2) 
 
@@ -173,6 +175,10 @@ void rload(){
 
 
 void setup() {
+  esp_task_wdt_init(8, true);  // 8 секунд таймаута
+  
+  // Регистрируем основную задачу в WDT
+  esp_task_wdt_add(NULL); 
   //Serial.begin(115200);
   //Сеть
   netstart();
@@ -383,6 +389,7 @@ void loop() {
     ////Serial.println("");
     ////Serial.println(x);
     opt.timer500=millis();
+    esp_task_wdt_reset();
     flameGet();
     rele();
     Display();
@@ -724,6 +731,10 @@ void web(){
           }
        }
       } 
+    while (ethClient.available()) {
+        ethClient.read();
+    }
+
     // Закрываем соединение
     ethClient.stop();
     }
