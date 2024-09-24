@@ -223,7 +223,7 @@ bool loadSettings() {
   configFile.readBytes(buf.get(), size);
   x=buf.get();
   StaticJsonDocument<1024> doc;
-  De//SerializationError error = de//SerializeJson(doc, buf.get());
+  DeserializationError error = deserializeJson(doc, buf.get());
   if (error) {
     //Serial.println("Failed to parse config file");
     return false;
@@ -271,7 +271,7 @@ void saveSettings() {
   doc["gister"] = conf.gister;
   doc["t_vizh"] = conf.t_vizh;
 
-  if (//SerializeJson(doc, configFile) == 0) {
+  if (serializeJson(doc, configFile) == 0) {
     //Serial.println("Failed to write to config file");
   }
 
