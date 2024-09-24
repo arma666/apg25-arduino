@@ -1,8 +1,8 @@
 String VERSION="v0.112a";
 
 #include <SSD1306Wire.h>
-#include "fontsRus.h"
-#include "fonts.h"
+// #include "fontsRus.h"
+// #include "fonts.h"
 //#include <EEPROM.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
