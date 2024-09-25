@@ -1,14 +1,14 @@
 String VERSION="v0.112a";
 
 #include <SSD1306Wire.h>
-// #include "fontsRus.h"
-// #include "fonts.h"
+#include "fontsRus.h"
+#include "fonts.h"
 //#include <EEPROM.h>
 #include <ArduinoJson.h>
 #include <SPIFFS.h>
 #include <SPI.h>
 #include <Ethernet2.h>
-#include "esp_task_wdt.h"
+// #include <esp_task_wdt.h>
 
 byte rAddr= 0;
 SSD1306Wire display(0x3c, SDA, SCL); // SDA - IO5 (D1), SCL - IO4 (D2) 
@@ -175,9 +175,8 @@ void rload(){
 
 
 void setup() {
-  esp_task_wdt_init(8, true);  // 8 секунд таймаута
-  // Регистрируем основную задачу в WDT
-  esp_task_wdt_add(NULL); 
+  // esp_task_wdt_init();
+  // esp_task_wdt_add(NULL);
   //Serial.begin(115200);
   //Сеть
   netstart();
@@ -388,7 +387,7 @@ void loop() {
     ////Serial.println("");
     ////Serial.println(x);
     opt.timer500=millis();
-    esp_task_wdt_reset();
+    // esp_task_wdt_reset();
     flameGet();
     rele();
     Display();
