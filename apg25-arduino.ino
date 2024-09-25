@@ -34,7 +34,7 @@ struct OPT {
   unsigned long Tbtn;
   float flamePersent = 0;
   byte vspeed = 0;
-  String defIP = "192.168.88.10";
+  String defIP = "-.-.-.-";
   unsigned long countTimer;
   byte rozhikCount = 0;
   boolean isnet = false; 
@@ -176,7 +176,6 @@ void rload(){
 
 void setup() {
   esp_task_wdt_init(8, true);  // 8 секунд таймаута
-  
   // Регистрируем основную задачу в WDT
   esp_task_wdt_add(NULL); 
   //Serial.begin(115200);
@@ -208,7 +207,7 @@ void setup() {
 
   //Дисплей
   display.init(); //  Инициализируем дисплей
-  display.flipScreenVertically(); // Устанавливаем зеркальное отображение экрана, к примеру, удобно, если вы хотите желтую область сделать вверху
+  display.flipScreenVertically(); // Устанавливаем зеркальное отображение экрана
   display.setFontTableLookupFunction(FontUtf8Rus);
 
 
