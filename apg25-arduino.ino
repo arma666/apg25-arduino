@@ -1,4 +1,20 @@
 String VERSION="v0.112a";
+#include <WiFi.h>
+#include <NetworkClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <HTTPUpdateServer.h>
+#ifndef STASSID
+#define STASSID "your-ssid"
+#define STAPSK  "your-password"
+#endif
+
+const char *host = "esp32-webupdate";
+const char *ssid = STASSID;
+const char *password = STAPSK;
+
+WebServer httpServer(81);
+HTTPUpdateServer httpUpdater;
 
 #include <SSD1306Wire.h>
 #include "fontsRus.h"
@@ -175,6 +191,16 @@ void rload(){
 
 
 void setup() {
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.begin(ssid, password);
+
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    WiFi.begin(ssid, password);
+  }
+
+
+  httpUpdater.setup(&httpServer);
+  httpServer.begin();
   // esp_task_wdt_init();
   // esp_task_wdt_add(NULL);
   //Serial.begin(115200);
@@ -369,6 +395,7 @@ void Display(){
 
 
 void loop() {
+  httpServer.handleClient();
   if (opt.isnet)
   {
     web();
