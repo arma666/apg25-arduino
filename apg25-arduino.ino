@@ -338,7 +338,9 @@ void Display(){
     case 12:
       status = "Лампа "+String(opt.countTimer);
     break;
-    case 13:
+    case 55:
+      status = F("Вижу пламя - фиксация");
+    case 56:
       status = F("Вижу пламя - фиксация");
     break;
     case 14:
@@ -454,6 +456,7 @@ void control() {
           vspeedtemp = 0;
         }
       break;
+      //10-11 подкидывание при розжиге
       case 10:
         opt.prregim = 11;
         shnekStart=true;
@@ -470,41 +473,41 @@ void control() {
           opt.Trozhik = millis();
         }
       break;
+      //Подкидывание закончилось, лампа, ждём когда увидим пламя
       case 12:
-        //Serial.println("12");
-        opt.countTimer=(opt.Trozhik+(conf.troz*1000L) - millis())/1000;
-        if (opt.Trozhik+(conf.troz*1000L) < millis()){
-          ////Serial.println("fuck");
-          if (!opt.rozhikCount) {
-            opt.rozhikCount++;
-            lampaStart=false;
-            opt.prregim = 10;
-          } else {
+        if (opt.flamePersent > conf.tfl) {
+          opt.prregim = 55;
+        }
+        if (opt.Trozhik+(conf.troz*1000L) < millis()) {
             opt.rozhikCount=0;
             opt.prregim = 19;
             opt.regim = 5;
             rwrite();
             lampaStart=false;
-          }
-        }
-        if (opt.flamePersent > conf.tfl) {
-          opt.Tflamefix = millis();
-          opt.prregim = 13;
         }
       break;
-      case 13:
-      //Serial.println("13");
-        //opt.countTimer=(opt.Tflamefix+(conf.tfl*1000L) - millis())/1000;
-        if (opt.flamePersent > conf.tfl && opt.Tflamefix+(conf.fl_fix*1000L)< millis()) {
-          //Если разгорелось
+      //Ждём пока процент пламени не дойдёт до 90 или время больше opt.Tflamefix
+      case 55:
+        if (opt.flamePersent > 90){ 
+          opt.prregim = 56;
+          opt.Tflamefix = millis();
+        }
+        if (opt.Trozhik+(conf.troz*1000L) < millis()) {
+            opt.rozhikCount=0;
+            opt.prregim = 19;
+            opt.regim = 5;
+            rwrite();
+            lampaStart=false;
+        }
+      break;
+      //ждём fl_fix, чтоб не забросало стартовое пламя 
+      case 56:
+        if (opt.Tflamefix+(conf.fl_fix*1000L)< millis()){
           lampaStart=false;
           opt.prregim = 14;
         }
-        if (opt.flamePersent < conf.tfl) {
-          //Если пламя пропало
-          opt.prregim = 12;
-        }
       break;
+      //разожглось
       case 14:
         if (temperVal>conf.temp-conf.gister) {
           //Если болше заданной температуры то поддержка
