@@ -1,20 +1,4 @@
 String VERSION="v0.112a";
-#include <WiFi.h>
-#include <NetworkClient.h>
-#include <WebServer.h>
-#include <ESPmDNS.h>
-#include <HTTPUpdateServer.h>
-#ifndef STASSID
-#define STASSID "your-ssid"
-#define STAPSK  "your-password"
-#endif
-
-const char *host = "esp32-webupdate";
-const char *ssid = STASSID;
-const char *password = STAPSK;
-
-WebServer httpServer(81);
-HTTPUpdateServer httpUpdater;
 
 #include <SSD1306Wire.h>
 #include "fontsRus.h"
@@ -90,14 +74,14 @@ SETTINGS defaultSettings = {
   10, //Время подкидывания при нагреве
   5, //Время подкидывания при подержании
   23, //Промежуток между подкидываниями
-  380, //Время отведённое на розжик
-  35, //Время виксации пламяни
+  400, //Время отведённое на розжик
+  30, //Время виксации пламяни
   23, //На каком проценте начинается фиксация
   30, //скорость вентилятора при розжиге
   100, //скорость вентилятора при нагреве
   75, //скорость вентилятора при поддержании
   0, //скорость вентилятора при ожидании
-  30, //Установка температуры
+  45, //Установка температуры
   4, //Гистерезис
   180 //Время выжигания после пламя = 0
 };
@@ -191,16 +175,6 @@ void rload(){
 
 
 void setup() {
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.begin(ssid, password);
-
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    WiFi.begin(ssid, password);
-  }
-
-
-  httpUpdater.setup(&httpServer);
-  httpServer.begin();
   // esp_task_wdt_init();
   // esp_task_wdt_add(NULL);
   //Serial.begin(115200);
@@ -395,7 +369,6 @@ void Display(){
 
 
 void loop() {
-  httpServer.handleClient();
   if (opt.isnet)
   {
     web();
@@ -905,3 +878,47 @@ void sendSettingsPage(EthernetClient& ethClient) {
   // Отправляем HTML-страницу с формой для изменения значений
   ethClient.print(F("<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style></head><body><iframe id='i'></iframe><script>(async function l(url,id){document.getElementById('i').srcdoc=await(await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html?'+(new Date).getTime())).text()})()</script></body></html>"));
 }
+
+
+
+
+// расчёт расхода ------------------------->
+struct RASHOD {
+  unsigned long startTimeChas = 0; 
+  bool firstRunChas = true;  
+  unsigned long  rashodChaspub = 0;
+  unsigned long  rashodChas = 0;
+  unsigned long  rashodSutki = 0;
+  unsigned long  rashodSutkiPub = 0;
+  unsigned long startTimeSutki = 0; 
+  bool firstRunSutki = true;  
+  unsigned long  rashodtmp = 0;
+  bool rashodflag = true;
+};
+RASHOD rashod;
+
+void rashodfunc(){
+
+
+  if (shnekStart && opt.prregim>10 && rashod.rashodflag) {
+    if (rashod.firstRunChas) {
+      rashod.startTimeChas = millis();  
+      rashod.firstRunChas = false;      
+    }
+    if (rashod.firstRunSutki) {
+      rashod.startTimeSutki = millis();  
+      rashod.firstRunSutki = false;      
+    }
+    rashod.rashodflag = false;
+    rashod.rashodtmp=millis();
+  }
+  if (!shnekStart && opt.prregim>10 && !rashod.rashodflag){
+    rashod.rashodflag = true;
+    rashod.rashodChas+=millis()-rashod.rashodtmp;
+    rashod.rashodChas+=millis()-rashod.rashodtmp;
+  }
+  if (millis() - rashod.startTimeChas >= 3600000) {
+    
+  }
+}
+//<---------------------------------
