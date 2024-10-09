@@ -500,7 +500,7 @@ void control() {
             lampaStart=false;
         }
       break;
-      //ждём fl_fix, чтоб не забросало стартовое пламя 
+      //ждём fl_fix, чтоб не забросало стартовое пламя
       case 56:
         if (opt.Tflamefix+(conf.fl_fix*1000L)< millis()){
           lampaStart=false;
