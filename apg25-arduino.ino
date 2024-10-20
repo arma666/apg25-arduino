@@ -1,4 +1,4 @@
-String VERSION="v0.112a";
+String VERSION="v0.122a";
 
 #include <SSD1306Wire.h>
 #include "fontsRus.h"
@@ -67,23 +67,25 @@ struct SETTINGS {
   byte temp; //Установка температуры
   byte gister; //Гистерезис
   byte t_vizh; //Время выжигания после пламя = 0
+  byte t_max; //температура перегрева
 };
 
 SETTINGS defaultSettings = {
   100, //Время подкидывания при розжиге 
-  10, //Время подкидывания при нагреве
-  5, //Время подкидывания при подержании
+  9, //Время подкидывания при нагреве
+  4, //Время подкидывания при подержании
   23, //Промежуток между подкидываниями
-  400, //Время отведённое на розжик
-  30, //Время виксации пламяни
+  600, //Время отведённое на розжик
+  100, //Время фиксации пламяни
   23, //На каком проценте начинается фиксация
-  30, //скорость вентилятора при розжиге
+  75, //скорость вентилятора при розжиге
   100, //скорость вентилятора при нагреве
   75, //скорость вентилятора при поддержании
   0, //скорость вентилятора при ожидании
   45, //Установка температуры
   4, //Гистерезис
-  180 //Время выжигания после пламя = 0
+  180, //Время выжигания после пламя = 0
+  70 //температура перегрева
 };
 SETTINGS conf; 
 
@@ -247,6 +249,9 @@ bool loadSettings() {
   conf.temp = doc["temp"] | defaultSettings.temp;
   conf.gister = doc["gister"] | defaultSettings.gister;
   conf.t_vizh = doc["t_vizh"] | defaultSettings.t_vizh;
+  conf.t_max = doc["t_max"] | defaultSettings.t_max;
+  
+  
 
   configFile.close();
   return true;
@@ -274,6 +279,7 @@ void saveSettings() {
   doc["temp"] = conf.temp;
   doc["gister"] = conf.gister;
   doc["t_vizh"] = conf.t_vizh;
+  doc["t_max"] = conf.t_max;
 
   if (serializeJson(doc, configFile) == 0) {
     //Serial.println("Failed to write to config file");
@@ -338,9 +344,7 @@ void Display(){
     case 12:
       status = "Лампа "+String(opt.countTimer);
     break;
-    case 55:
-      status = F("Вижу пламя - фиксация");
-    case 56:
+    case 13:
       status = F("Вижу пламя - фиксация");
     break;
     case 14:
@@ -357,6 +361,9 @@ void Display(){
     break;
     case 32:
       status = "Подкидывание "+String(opt.countTimer);
+    break;
+    case 80:
+      status = "Перегрев!!!!";
     break;
     default:
       status = opt.defIP;
@@ -382,6 +389,10 @@ void loop() {
   if (millis() - opt.TTemp >= 5000) {
     opt.TTemp = millis();
     temperVal = TempGetTepr();
+    //Если перегрев
+    if (temperVal>conf.t_max) {
+      opt.prregim = 80;
+    }
     ////Serial.println(String(millis()) + " - "+ String(opt.TTemp) );
     ////Serial.println(String(temperVal));
   }
@@ -440,6 +451,12 @@ void flamecheck(){
 void control() {
   ////Serial.println(String(opt.prregim));
   switch (opt.prregim) {
+      //Перегрев
+      case 80:
+        shnekStart=false;
+        lampaStart=false;
+        vspeedtemp = 100;
+      break;
       case 8:
         if (opt.flamePersent == 0) {
           opt.Tvizh = millis();
@@ -475,39 +492,41 @@ void control() {
       break;
       //Подкидывание закончилось, лампа, ждём когда увидим пламя
       case 12:
+        opt.countTimer=(opt.Trozhik+(conf.troz*1000L) - millis())/1000;
+        //Лампа не больше 300 секунд
+        if (opt.Trozhik+300*1000L<millis()){
+          lampaStart=false;
+        }
+        if (opt.Trozhik+(conf.troz*1000L) < millis()){
+          ////Serial.println("fuck");
+          if (!opt.rozhikCount) {
+            opt.rozhikCount++;
+            lampaStart=false;
+            opt.prregim = 10;
+          } else {
+            opt.rozhikCount=0;
+            opt.prregim = 19;
+            opt.regim = 5;
+            rwrite();
+            lampaStart=false;
+          }
+        }
         if (opt.flamePersent > conf.tfl) {
-          opt.prregim = 55;
-        }
-        if (opt.Trozhik+(conf.troz*1000L) < millis()) {
-            opt.rozhikCount=0;
-            opt.prregim = 19;
-            opt.regim = 5;
-            rwrite();
-            lampaStart=false;
-        }
-      break;
-      //Ждём пока процент пламени не дойдёт до 90 или время больше opt.Tflamefix
-      case 55:
-        if (opt.flamePersent > 90){ 
-          opt.prregim = 56;
           opt.Tflamefix = millis();
-        }
-        if (opt.Trozhik+(conf.troz*1000L) < millis()) {
-            opt.rozhikCount=0;
-            opt.prregim = 19;
-            opt.regim = 5;
-            rwrite();
-            lampaStart=false;
+          opt.prregim = 13;
         }
       break;
-      //ждём fl_fix, чтоб не забросало стартовое пламя
-      case 56:
-        if (opt.Tflamefix+(conf.fl_fix*1000L)< millis()){
+      case 13:
+        if (opt.flamePersent > conf.tfl && opt.Tflamefix+(conf.fl_fix*1000L)< millis()) {
+          //Если разгорелось
           lampaStart=false;
           opt.prregim = 14;
         }
+        if (opt.flamePersent < conf.tfl) {
+          //Если пламя пропало
+          opt.prregim = 12;
+        }
       break;
-      //разожглось
       case 14:
         if (temperVal>conf.temp-conf.gister) {
           //Если болше заданной температуры то поддержка
@@ -806,6 +825,8 @@ boolean sendparams(EthernetClient& ethClient, String request) {
     ethClient.print(conf.gister);
     ethClient.print(F(",\"t_vizh\":"));
     ethClient.print(conf.t_vizh);
+    ethClient.print(F(",\"t_max\":"));
+    ethClient.print(conf.t_tmax);
     ethClient.print("}");
 
     return false;
@@ -847,6 +868,9 @@ void setval(const String keyString, const unsigned long val) {
   } else if (keyString == F("t_vizh")) {
     conf.t_vizh = val;
   } 
+  else if (keyString == F("t_max")) {
+    conf.t_max = val;
+  }
 }
 
 //Принимаем изменившуюся настройку
@@ -878,47 +902,3 @@ void sendSettingsPage(EthernetClient& ethClient) {
   // Отправляем HTML-страницу с формой для изменения значений
   ethClient.print(F("<html><head><meta name='viewport' content='width=device-width, initial-scale=1.0'><style>body,html,iframe{width:100%;height:100%}body,html{margin:0;padding:0;overflow:hidden}iframe{border:none}</style></head><body><iframe id='i'></iframe><script>(async function l(url,id){document.getElementById('i').srcdoc=await(await fetch('https://raw.githubusercontent.com/arma666/apg25-arduino/main/html/loaded.html?'+(new Date).getTime())).text()})()</script></body></html>"));
 }
-
-
-
-
-// расчёт расхода ------------------------->
-struct RASHOD {
-  unsigned long startTimeChas = 0; 
-  bool firstRunChas = true;  
-  unsigned long  rashodChaspub = 0;
-  unsigned long  rashodChas = 0;
-  unsigned long  rashodSutki = 0;
-  unsigned long  rashodSutkiPub = 0;
-  unsigned long startTimeSutki = 0; 
-  bool firstRunSutki = true;  
-  unsigned long  rashodtmp = 0;
-  bool rashodflag = true;
-};
-RASHOD rashod;
-
-void rashodfunc(){
-
-
-  if (shnekStart && opt.prregim>10 && rashod.rashodflag) {
-    if (rashod.firstRunChas) {
-      rashod.startTimeChas = millis();  
-      rashod.firstRunChas = false;      
-    }
-    if (rashod.firstRunSutki) {
-      rashod.startTimeSutki = millis();  
-      rashod.firstRunSutki = false;      
-    }
-    rashod.rashodflag = false;
-    rashod.rashodtmp=millis();
-  }
-  if (!shnekStart && opt.prregim>10 && !rashod.rashodflag){
-    rashod.rashodflag = true;
-    rashod.rashodChas+=millis()-rashod.rashodtmp;
-    rashod.rashodChas+=millis()-rashod.rashodtmp;
-  }
-  if (millis() - rashod.startTimeChas >= 3600000) {
-    
-  }
-}
-//<---------------------------------

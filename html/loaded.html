@@ -97,6 +97,7 @@
         </div>
         <div v-if="showSettings" class="settings-container">
             <div class="settings-list">
+              <button @click="closeSettings" class="btn btn-danger">Закрыть</button>
                 <div v-for="(value, param) in settings" :key="param" class="setting-item">
                     <div class="setting-info">
                         <p class="setting-name">{{ value.name }}</p>
@@ -205,6 +206,10 @@
                         },
                         t_vizh: {
                             name: "Время выжигания после пламя = 0",
+                            val: 10
+                        },
+                        t_max: {
+                            name: "Температура перегрева",
                             val: 10
                         }
                     }
