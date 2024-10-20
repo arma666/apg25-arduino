@@ -471,6 +471,7 @@ void control() {
           shnekStart=false;
           lampaStart=false;
           vspeedtemp = 0;
+          ESP.restart();
         }
       break;
       //10-11 подкидывание при розжиге
