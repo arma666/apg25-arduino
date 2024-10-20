@@ -826,7 +826,7 @@ boolean sendparams(EthernetClient& ethClient, String request) {
     ethClient.print(F(",\"t_vizh\":"));
     ethClient.print(conf.t_vizh);
     ethClient.print(F(",\"t_max\":"));
-    ethClient.print(conf.t_tmax);
+    ethClient.print(conf.t_max);
     ethClient.print("}");
 
     return false;
