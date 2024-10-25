@@ -10,6 +10,12 @@ String VERSION="v0.122a";
 #include <Ethernet2.h>
 // #include <esp_task_wdt.h>
 
+//Расход
+unsigned long throwTime = 0; //Накопление
+unsigned long throwTimemillis = 0;
+float throwPersent = 0;
+///////
+
 byte rAddr= 0;
 SSD1306Wire display(0x3c, SDA, SCL); // SDA - IO5 (D1), SCL - IO4 (D2) 
 
@@ -289,6 +295,7 @@ void saveSettings() {
 }
 
 
+
 void Display(){
   display.clear(); // Очищаем экран
   display.setFont(ArialRus_Plain_10); // Шрифт кегль 10
@@ -529,6 +536,7 @@ void control() {
         }
       break;
       case 14:
+        throwTimemillis = millis();
         if (temperVal>conf.temp-conf.gister) {
           //Если болше заданной температуры то поддержка
           opt.regim = 3;
@@ -558,6 +566,8 @@ void control() {
       case 22: 
         opt.countTimer=(opt.Tshnek+(conf.tnag_sh*1000L) - millis())/1000;
         if (opt.Tshnek+(conf.tnag_sh*1000L)<millis()){
+          throwTime+=conf.tnag_sh*1000L;
+          throwPersent = (float)throwTimemillis / throwTime * 100.0;
           shnekStart=false;
           opt.waitTshnek = millis();
           opt.prregim = 23;
@@ -591,6 +601,8 @@ void control() {
       case 32: 
         opt.countTimer=(opt.Tshnek+(conf.tpod_sh*1000L) - millis())/1000;
         if (opt.Tshnek+(conf.tpod_sh*1000L)<millis()){
+          throwTime+=conf.tpod_sh*1000L;
+          throwPersent = (float)throwTimemillis / throwTime * 100.0;
           shnekStart=false;
           opt.waitTshnek = millis();
           opt.prregim = 33;
@@ -784,6 +796,7 @@ boolean sendst(EthernetClient& ethClient, String request) {
     ethClient.print("\"lampaStart\":" + String(lampaStart) + ",");
     ethClient.print("\"vspeed\":" + String(vspeed) + ",");
     ethClient.print("\"flamePersent\":" + String(opt.flamePersent) + ",");
+    ethClient.print("\"throwPersent\":" + String(throwPersent) + ",");
     ethClient.print("\"temperVal\":" + String(temperVal) + "}");
     return false;
   } else {

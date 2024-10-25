@@ -93,8 +93,21 @@
               </div>
             </div>
           </div>
+
+          <div class="col-md-4">
+            <div class="card mb-4 shadow-sm">
+              <div class="card-body">
+                <h5 class="card-title">Расход</h5>
+                <p class="card-text">{{ throwPersent }}%</p>
+              </div>
+            </div>
+          </div>
+
         </div>
         </div>
+
+        
+
         <div v-if="showSettings" class="settings-container">
             <div class="settings-list">
               <button @click="closeSettings" class="btn btn-danger">Закрыть</button>
@@ -147,6 +160,7 @@
                     vspeed: 0,
                     lampaStart: 0,
                     shnekStart: 0,
+                    throwPersent: 0,
 
                     showSettings: false,
                     showPopup: false,
@@ -244,6 +258,7 @@
                             this.vspeed = data.vspeed;
                             this.lampaStart = data.lampaStart;
                             this.shnekStart = data.shnekStart;
+                            this.throwPersent = data.throwPersent;
                         })
                         .catch(error => {
                             console.error(error);
