@@ -15,6 +15,7 @@ unsigned long throwTime = 0; //Накопление
 unsigned long throwTimemillis = 0;
 float throwPersent = 0;
 ///////
+unsigned long trozhTemp = 0;
 
 byte rAddr= 0;
 SSD1306Wire display(0x3c, SDA, SCL); // SDA - IO5 (D1), SCL - IO4 (D2) 
@@ -500,12 +501,18 @@ void control() {
       break;
       //Подкидывание закончилось, лампа, ждём когда увидим пламя
       case 12:
-        opt.countTimer=(opt.Trozhik+(conf.troz*1000L) - millis())/1000;
+        
+        if (opt.rozhikCount) {
+          trozhTemp = 10;
+        } else {
+          trozhTemp = conf.troz;
+        }
+        opt.countTimer=(opt.Trozhik+(trozhTemp*1000L) - millis())/1000;
         //Лампа не больше 300 секунд
         if (opt.Trozhik+300*1000L<millis()){
           lampaStart=false;
         }
-        if (opt.Trozhik+(conf.troz*1000L) < millis()){
+        if (opt.Trozhik+(trozhTemp*1000L) < millis()){
           ////Serial.println("fuck");
           if (!opt.rozhikCount) {
             opt.rozhikCount++;
