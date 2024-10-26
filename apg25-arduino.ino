@@ -574,7 +574,7 @@ void control() {
         opt.countTimer=(opt.Tshnek+(conf.tnag_sh*1000L) - millis())/1000;
         if (opt.Tshnek+(conf.tnag_sh*1000L)<millis()){
           throwTime+=conf.tnag_sh*1000L;
-          throwPersent = (float)throwTimemillis / throwTime * 100.0;
+          throwPersent = throwTime * 100.0 / (millis()-(float)throwTimemillis);
           shnekStart=false;
           opt.waitTshnek = millis();
           opt.prregim = 23;
@@ -609,7 +609,7 @@ void control() {
         opt.countTimer=(opt.Tshnek+(conf.tpod_sh*1000L) - millis())/1000;
         if (opt.Tshnek+(conf.tpod_sh*1000L)<millis()){
           throwTime+=conf.tpod_sh*1000L;
-          throwPersent = (float)throwTimemillis / throwTime * 100.0;
+          throwPersent = throwTime * 100.0 / (millis()-(float)throwTimemillis);
           shnekStart=false;
           opt.waitTshnek = millis();
           opt.prregim = 33;
