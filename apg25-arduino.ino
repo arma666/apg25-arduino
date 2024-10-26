@@ -8,7 +8,11 @@ String VERSION="v0.122a";
 #include <SPIFFS.h>
 #include <SPI.h>
 #include <Ethernet2.h>
-// #include <esp_task_wdt.h>
+// Перезагрузка интерфейса
+unsigned long lastResetTime = 0;
+unsigned long resetInterval = 900000;   // Интервал перезагрузки (15 минут)
+//
+
 
 //Расход
 unsigned long throwTime = 0; //Накопление
@@ -152,6 +156,13 @@ void netstart(){
     // Начинаем слушать порт 80
     server.begin();
   }
+}
+
+void netreset(){
+  if (millis() - lastResetTime >= resetInterval) {
+      lastResetTime = millis();  
+      netstart(); 
+    }
 }
 
 int percentToValue(int percent) { //Функция перевода процентов в число для вкентилятора
@@ -395,6 +406,7 @@ void loop() {
   
   
   if (millis() - opt.TTemp >= 5000) {
+    netreset();
     opt.TTemp = millis();
     temperVal = TempGetTepr();
     //Если перегрев
