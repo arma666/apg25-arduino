@@ -721,7 +721,10 @@ char FontUtf8Rus(const byte ch) {
 
 //получение огня
 void flameGet() {
-  opt.flamePersent = 100 - ((float)analogRead(analogPin)/ 4095.0) * 100;
+  float rawValue = analogRead(analogPin) / 4095.0;
+  opt.flamePersent = 100 - pow(rawValue, 2) * 100;
+  if (opt.flamePersent > 100) opt.flamePersent = 100;
+  if (opt.flamePersent < 0) opt.flamePersent = 0;
 }
 
 // Получение температуры---------------->
