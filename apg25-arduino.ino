@@ -451,7 +451,7 @@ void flamecheck(){
           opt.Tflame=millis();
     }
   }
-  if (opt.Tflame && opt.Tflame+(45*1000L)<millis()){
+  if (opt.Tflame && opt.Tflame+(60*1000L)<millis()){
     if (opt.flamePersent < conf.tfl){
       //не разожглось, уходим в ошибку
       shnekStart=false;
@@ -496,14 +496,19 @@ void control() {
       break;
       //10-11 подкидывание при розжиге
       case 10:
+        if (opt.rozhikCount) {
+            trozhTemp = 10;
+        } else {
+            trozhTemp = conf.troz_sh;
+        }
         opt.prregim = 11;
         shnekStart=true;
         opt.Tshnek = millis();
-        opt.countTimer=conf.troz_sh;
+        //opt.countTimer=trozhTemp;
       break;
       case 11:
-        opt.countTimer=(opt.Tshnek+(conf.troz_sh*1000L) - millis())/1000;
-        if (opt.Tshnek+(conf.troz_sh*1000L) < millis()) {
+        opt.countTimer=(opt.Tshnek+(trozhTemp*1000L) - millis())/1000;
+        if (opt.Tshnek+(trozhTemp*1000L) < millis()) {
           shnekStart=false;
           lampaStart=true;
           vspeedtemp = conf.vroz;
@@ -513,18 +518,12 @@ void control() {
       break;
       //Подкидывание закончилось, лампа, ждём когда увидим пламя
       case 12:
-        
-        if (opt.rozhikCount) {
-          trozhTemp = 10;
-        } else {
-          trozhTemp = conf.troz;
-        }
-        opt.countTimer=(opt.Trozhik+(trozhTemp*1000L) - millis())/1000;
+        opt.countTimer=(opt.Trozhik+(conf.troz*1000L) - millis())/1000;
         //Лампа не больше 300 секунд
-        if (opt.Trozhik+300*1000L<millis()){
-          lampaStart=false;
-        }
-        if (opt.Trozhik+(trozhTemp*1000L) < millis()){
+        // if (opt.Trozhik+300*1000L<millis()){
+        //   lampaStart=false;
+        // }
+        if (opt.Trozhik+(conf.troz*1000L) < millis()){
           ////Serial.println("fuck");
           if (!opt.rozhikCount) {
             opt.rozhikCount++;
