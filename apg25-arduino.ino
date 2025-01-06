@@ -37,9 +37,9 @@ struct OPT {
   unsigned long  Trozhik;
   unsigned long  Tflamefix;
   unsigned long  waitTshnek;
-  unsigned long Tflame;
+  unsigned long Tflame;//Сколько времени нет пламени
   unsigned long Tvizh;
-  unsigned long  TFlame;
+  unsigned long  TFlame; 
   unsigned long TTemp;
   unsigned long timer500;
   unsigned long Tbtn;
@@ -57,9 +57,11 @@ struct OPT {
   3 - Поддержание
   4 - Выжигание
   5 - Ошибка розжига
+  6 - Ошибка пламени
 */
   byte regim;
   byte prregim;
+  boolean isstart = true;
 };
 OPT opt;
 //Настройки ------------>
@@ -215,11 +217,9 @@ void setup() {
   }
   
   if (!loadSettings()) {
-    //Serial.println("Failed to load settings from file, using default settings");
     conf = defaultSettings;
     saveSettings();
   }
-  rload();
   
   //Кнопка
   pinMode(bpin, INPUT_PULLUP); 
@@ -229,8 +229,25 @@ void setup() {
   display.flipScreenVertically(); // Устанавливаем зеркальное отображение экрана
   display.setFontTableLookupFunction(FontUtf8Rus);
 
+  //Загрузка режима
+  rload();
+
+  //Проверяем пламя
+  flameGet();
+  checkstart();
 
 }
+
+void checkstart(){
+  switch (opt.regim) {
+      //Перегрев
+      case 0:
+        shnekStart=false;
+        lampaStart=false;
+        vspeedtemp = 100;
+      break;
+}
+
 String x = "";
 bool loadSettings() {
   File configFile = SPIFFS.open("/conf1.json", "r");
@@ -413,14 +430,10 @@ void loop() {
     if (temperVal>conf.t_max) {
       opt.prregim = 80;
     }
-    ////Serial.println(String(millis()) + " - "+ String(opt.TTemp) );
-    ////Serial.println(String(temperVal));
   }
+  
   if (millis() - opt.timer500 >= 500) {
-    ////Serial.println("");
-    ////Serial.println(x);
     opt.timer500=millis();
-    // esp_task_wdt_reset();
     flameGet();
     rele();
     Display();
@@ -447,19 +460,20 @@ void loop() {
 void flamecheck(){
   if (opt.regim && opt.regim!=1 && opt.regim!=5 && opt.regim!=4 && !opt.Tflame){
     if (opt.flamePersent < conf.tfl) {
-          //Если пламя пропало, то возможно его забросало и оно разгориться, ждём 20 секунд
+          //Если пламя пропало, то возможно его забросало и оно разгориться, ждём 45 секунд
           opt.Tflame=millis();
     }
   }
-  if (opt.Tflame && opt.Tflame+(60*1000L)<millis()){
+  if (opt.Tflame && opt.Tflame+(45*1000L)<millis()){
     if (opt.flamePersent < conf.tfl){
       //не разожглось, уходим в ошибку
       shnekStart=false;
       opt.prregim = 19;
-      opt.regim = 5;
+      opt.regim = 6;
       rwrite();
       lampaStart=false;
       opt.Tflame=0;
+      ESP.restart();
     } else {
       opt.Tflame=0;
     }
@@ -477,13 +491,13 @@ void control() {
         lampaStart=false;
         vspeedtemp = 100;
       break;
-      case 8:
+      case 8: //Выжигание, ждём когда погаснет
         if (opt.flamePersent == 0) {
           opt.Tvizh = millis();
           opt.prregim = 9;
         }
       break;
-      case 9:
+      case 9: //
         if (opt.Tvizh+(conf.t_vizh*1000L)<millis()){
           opt.prregim = 0;
           opt.regim = 0;
