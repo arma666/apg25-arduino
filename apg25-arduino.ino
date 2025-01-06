@@ -239,13 +239,34 @@ void setup() {
 }
 
 void checkstart(){
-  switch (opt.regim) {
-      //Перегрев
-      case 0:
-        shnekStart=false;
-        lampaStart=false;
-        vspeedtemp = 100;
-      break;
+  if (opt.flamePersent>0){ //Если есть плямя
+    if (opt.regim == 2 || opt.regim == 3 ){ //Если до перезагрузки был режим 2 или 3
+      opt.prregim = 14; //ВОзращаем печку в режим 
+    }
+    if (opt.regim == 4) { //Если стояло выжигание
+      opt.prregim = 8;
+    }
+    if (opt.regim == 1){ //Если тоял розжик
+      opt.prregim = 8;
+    }
+    if (opt.regim == 6) { //Если ошибка пламени при работе
+      opt.prregim = 14;
+    }
+  } else { //Если пламени нет
+     if (opt.regim == 2 || opt.regim == 3 || opt.regim == 6) { //Если до рестарта горело или ошибка пламени при работе, тогда розжик
+      opt.regim = 1;
+      opt.prregim = 10;
+     } else {
+      opt.regim = 0;
+      opt.prregim = 0;
+      opt.Tflame=0;
+      shnekStart=false;
+      lampaStart=false;
+      vspeedtemp = 0;
+     }
+  }
+  rwrite();
+
 }
 
 String x = "";
